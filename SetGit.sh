@@ -9,7 +9,7 @@ git remote add origin https://github.com/johnabrooks/Project2
 git config pull.rebase true
 
 # pull all files from the GitHub repo (typically just readme, license, gitignore)
-git pull origin master
+git pull origin main
 
 # set up GitHub repo to track changes on local machine
-git push -u origin master
+git push -u origin main

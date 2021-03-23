@@ -1,11 +1,18 @@
+# Initialization
+## Packages
+
 #install.packages("rvest")
 library(rvest)
 library(stringr)
 library(tidyverse)
 library(sentimentr)
 
-url_data <- "https://7esl.com/english-idioms/"
+# Load data from website
+## Note that these steps can be skipped if you load in the idiom package
+###################
 
+## Initialize read parameters
+url_data <- "https://7esl.com/english-idioms/"
 storeIdioms <- list()
 indexNow <- 1
 letterIndex <- "01"
@@ -14,20 +21,15 @@ css_selector <- paste0("#elementor-tab-content-24",
                        " > table > tbody > tr:nth-child(",
                        indexNow,
                        ") > td")
+
+## Read the first idiom
 readCurrent <- url_data %>% 
   read_html() %>% 
   html_node(css = css_selector) %>% 
   html_text() %>%
   tolower()
 
-tibble(expression = "", 
-       definition = "")
-
-t <- data.frame(a = c(), b = c())
-u <- data.frame(a = c(1), b = c(2))
-u <- tibble(a = c(1), b = c(2))
-t <- rbind(t, u)
-
+## Assess if an idiom was captured and store it
 if(is.na(readCurrent)==FALSE){
   intM <- str_split(readCurrent, ": ")
   storeIdioms[[as.numeric(letterIndex)]] <- 
@@ -35,6 +37,7 @@ if(is.na(readCurrent)==FALSE){
            definition = intM[[as.numeric(letterIndex)]][2])
 }
 
+## Repeat idiom read in until the process is complete
 while(is.na(readCurrent)==FALSE){
   intM <- str_split(readCurrent, ": ")
   if(indexNow > 1){
@@ -77,36 +80,40 @@ while(is.na(readCurrent)==FALSE){
       tolower()
   }
 }
+###################
 
+# Load data from store
+## View your working directory
 getwd()
+
+## Set you working directory as necessary
 # setwd("/Users/johnbrooks/Desktop/Course Work/STAT5702/Project2/")
 # Save a single object to a file
 # saveRDS(storeIdioms, "idiomsRead.rds")
 # Restore it under a different name
+
+## Read in the idioms from file
 storeIdioms <- readRDS("idiomsRead.rds")
 
+## Clean the idiom list
 for(currentLetter in 1:length(storeIdioms)) {
   storeIdioms[[currentLetter]]$expression <- tolower(storeIdioms[[currentLetter]]$expression)
   storeIdioms[[currentLetter]]$expression <- str_replace_all(storeIdioms[[currentLetter]]$expression, pattern = " \\(.*?\\)", "")
   storeIdioms[[currentLetter]]$definition <- tolower(storeIdioms[[currentLetter]]$definition)
 }
 
+# Sentiment Analysis
+## Initialize for sentiment analysis
 #install.packages("sentimentr")
 library(sentimentr)
-# lexicon::hash_sentiment_jockers_rinker
+#lexicon::hash_sentiment_jockers_rinker
 
-#storeIdioms[[18]]
-#sentiment_by(storeIdioms[[18]]$definition, by = NULL)
-#View(emotion_by(storeIdioms[[18]]$definition, by = NULL))
-
-#storeIdioms[[18]] %>%
-#  get_sentences() %>%
-#  sentiment_by(., by = "expression")
-
-# Sentiment
+## Process sentiment
+### Create sentiment store tibble
 sTibble <- data.frame(expression = c(), word_count = c(), sd = c(), 
                       ave_sentiment = c())
 
+### Process sentiments
 for(sTibbleIndex in 1:length(storeIdioms)) {
   storeIdioms[[sTibbleIndex]] %>%
     get_sentences() %>%
@@ -114,12 +121,11 @@ for(sTibbleIndex in 1:length(storeIdioms)) {
     rbind(sTibble,.) -> sTibble
 }
 
+### Create sentiment tibble with average results
 rsTibble <- tibble(expression = sTibble$expression,
                    sentimentF = sTibble$ave_sentiment)
 
-rsTibble$sentimentF > 0
-rsTibble$sentimentF < 0
-
+### Norm the sentiments
 maxSrst <- max(rsTibble$sentimentF)
 minSrst <- min(rsTibble$sentimentF)
 
@@ -131,9 +137,10 @@ rsTibble$sentimentF[rsTibble$sentimentF < 0] <-
 
 sentimentrTibble <- rsTibble[!duplicated(rsTibble$expression),]
 
-# Emotional
+# Emotional Analysis
 aTibble <- data.frame()
 
+## For emotional processing we merge the definition and expression
 for(aTibbleIndex in 1:length(storeIdioms)) {
   aTibble <- rbind(aTibble,
                    tibble(expression = storeIdioms[[aTibbleIndex]]$expression,
@@ -142,7 +149,10 @@ for(aTibbleIndex in 1:length(storeIdioms)) {
                                         sep = ", ")))
 }
 
+## We will get the sentences for emotional processing but will amalgamate sentences first to avoid multiple entries
 emotionsTibble <- emotion(get_sentences(gsub("\\!",";",gsub("\\.",";",aTibble$defEx,))))
+
+## Separate emotional declarations into logical vectors
 emotionsNoted <- c("anger", "anger_negated", "anticipation", "anticipation_negated", 
                    "disgust", "disgust_negated", "fear", "fear_negated",
                    "joy", "joy_negated", "sadness", "sadness_negated",
@@ -165,6 +175,7 @@ surprise_negated = emotionsTibble$emotion_type == emotionsNoted[14]
 trust = emotionsTibble$emotion_type == emotionsNoted[15]
 trust_negated = emotionsTibble$emotion_type == emotionsNoted[16]
 
+## Create and emotions logic frame
 emotionsLogic <- data.frame(
   anger,
   anger_negated,
@@ -184,6 +195,7 @@ emotionsLogic <- data.frame(
   trust_negated
 )
 
+## Combine the emotions into their original categories by collapsing negations and finding maximal emotional hits
 strictEmotionsNoted <- c("anger", "anticipation", 
                          "disgust", "fear",
                          "joy", "sadness",
@@ -235,12 +247,22 @@ for(elementIndex in 1:max(emotionsTibble$element_id)){
   }
 }
 
+## Creat summary emotial table
 #lexicon::hash_nrc_emotions
 overallEmotionTibble <- tibble(token,
                                emotion = d)
 
 finalEmotionTibble <- overallEmotionTibble[!duplicated(paste(overallEmotionTibble$token, overallEmotionTibble$emotion)),]
 
+## View
+View(finalEmotionTibble)
+View(left_join(sentimentrTibble,overallEmotionTibble))
+
+# Remove Contractions
+library(textclean)
+replace_contraction(finalEmotionTibble$expression, contraction.key = lexicon::key_contractions)
+
+# Change idioms to patterns
 
 # Examples
 # must have a word in between
@@ -255,27 +277,8 @@ str_locate_all("he saved my bacon", "saved (my|his) bacon")
 
 
 
-View(finalEmotionTibble)
 
-View(left_join(sentimentrTibble,overallEmotionTibble))
-
-
-
-
-
-
-
-# Remove Contractions
-library(textclean)
-replace_contraction(finalEmotionTibble$expression, contraction.key = lexicon::key_contractions)
-
-
-
-
-
-
-
-########## Experimentation
+########## Experimentation / No need to read beyond this point
 ########################
 
 ## Other
