@@ -13,3 +13,5 @@ git pull origin main
 
 # set up GitHub repo to track changes on local machine
 git push -u origin main
+
+# https://hansenjohnson.org/post/sync-github-repository-with-existing-r-project/
