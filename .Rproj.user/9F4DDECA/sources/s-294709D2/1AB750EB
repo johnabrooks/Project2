@@ -1,9 +1,9 @@
 {
     "id": "1AB750EB",
-    "path": "~/Dropbox/Synced/R/STAT 5702/Project2/Idomatic.R",
+    "path": "~/Dropbox/Synced/R/STAT 5702/Project2/IdomaticIn.R",
     "project_path": null,
     "type": "r_source",
-    "hash": "0",
+    "hash": "289271831",
     "contents": "",
     "dirty": false,
     "created": 1616468496912.0,
@@ -11,15 +11,15 @@
     "relative_order": 3,
     "properties": {
         "tempName": "Untitled1",
-        "cursorPosition": "5,16",
+        "cursorPosition": "6,18",
         "scrollLine": "0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1616468524,
+    "lastKnownWriteTime": 1616468670,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1616468524338,
+    "last_content_update": 1616468670983,
     "read_only": false,
     "read_only_alternatives": []
 }
