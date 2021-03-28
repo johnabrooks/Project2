@@ -102,6 +102,10 @@ for(currentStr in forTranslation$response) {
 # saveRDS(translationFrame,"frenchToEnglish.rds")
 
 g <- readRDS("frenchToEnglish.rds")
+
+write.xlsx(g, "frenchToEnglish.xlsx")
+
+
 ### process every "value
 
 # Prepare data for assessment
