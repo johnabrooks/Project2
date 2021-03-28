@@ -14,6 +14,9 @@ library(qdapDictionaries)
 # install.packages("googleLanguageR")
 library(googleLanguageR)
 
+# Load authorization
+gl_auth("/Users/johnbrooks/Dropbox/Synced/Credentials/API/STAT 5702 - Text Translation-df0390ca10f9.json")
+
 # https://cran.r-project.org/web/packages/googleLanguageR/vignettes/setup.html
 
 # Read in file
@@ -65,19 +68,43 @@ forTranslation <- pivtData %>%
   
   # Take out french
   filter(c_2 == "FR") 
-  
+
 # Count Characters
 counterChar <- 0
 for(currentStr in forTranslation$response) {
   counterChar <- counterChar + str_length(currentStr)
 }
 
+# control + shift + C to activate / deactivate lines
+# translationFeed <- forTranslation$response[!(forTranslation$response == "")]
+# 
+# translationFrame <- gl_translate(
+#   t_string,
+#   target = "en",
+#   format = "text",
+#   source = "fr",
+#   model = "nmt"
+# )
+# 
+# for (i in 2:length(translationFeed)){
+#   if(i!=8){
+#     translationEnFr <- gl_translate(
+#       translationFeed[i],
+#       target = "en",
+#       format = "text",
+#       source = "fr",
+#       model = "nmt"
+#     )
+#   }
+#   translationFrame <- rbind(translationFrame, translationEnFr)
+# }
+# 
+# saveRDS(translationFrame,"frenchToEnglish.rds")
 
-
-
+g <- readRDS("frenchToEnglish.rds")
 ### process every "value
 
-# Prepare data for translation
+# Prepare data for assessment
 forProcessEng <- pivtData %>%
   
   # Take out french
@@ -105,10 +132,10 @@ for(currentIndex in 1:nrow(forProcessEng)) {
     wordsList
 }
 
-wordsList
-write.xlsx(wordsList,"/Users/johnbrooks/Desktop/Course Work/STAT5702/Project2/words.xlsx")
+#wordsList
+#write.xlsx(wordsList,"/Users/johnbrooks/Desktop/Course Work/STAT5702/Project2/words.xlsx")
 
-trueWords <- list(
+trueWords <- rbind(
   c("RARAD",""),
   c("ITB",""),
   c("ABSB",""),
@@ -129,7 +156,7 @@ trueWords <- list(
   c("TETSO",""), 
   c("BECC",""), 
   c("BIQA",""),
-  c("CPB's",""),
+  c("CPB\'s",""),
   c("BMC",""),
   c("DMC",""),
   c("DGs",""),
@@ -150,38 +177,38 @@ trueWords <- list(
   c("EFMS",""),
   c("FORD program","TBS program for the development of Financial Officers FIs"),
   c("FORD","TBS program for the development of Financial Officers FIs"),
-  c("DoF",""), #department of finance
-  c("FAB's",""),
+  c("DoF","Department of Finance"), #department of finance
+  c("FAB\'s",""),
   c("FAMF",""),
   c("FandA",""),
-  c("FMASD's","Financial Management & Advisory Services Directorate's"),
+  c("FMASD\'s","Financial Management & Advisory Services Directorate's"),
   c("FMASD","Financial Management & Advisory Services Directorate"),
   c("FMAs",""),
   c("FMAS",""),
-  c("FMA's",""),
-  c("FRAD's",""),
+  c("FMA\'s",""),
+  c("FRAD\'s",""),
   c("FRAD",""),
   c("FTEs",""),
   c("GCWCC",""),
   c("NPSW",""),
   c("GLs",""),
-  c("GS's",""),
+  c("GS\'s",""),
   c("HRB",""),
   c("IAFCD",""),
   c("IBC",""),
-  c("IBC's",""),
+  c("IBC\'s",""),
   c("ZDFA_RPT",""),
-  c("ID's",""), #alert
+  c("ID\'s",""), #alert
   c("ISD",""), #alert
   c("ITB",""),
   c("ITSSP",""),
   c("ITSS",""),
   c("JVs",""),
-  c("KRP's",""),
+  c("KRP\'s",""),
   c("MG1",""),
-  c("MG1's",""),
+  c("MG1\'s",""),
   c("MG2",""),
-  c("MG2's",""),
+  c("MG2\'s",""),
   c("MG3",""),
   c("MG4",""),
   c("MIFI",""),
@@ -192,18 +219,18 @@ trueWords <- list(
   c("OAG",""),
   c("OGD",""),
   c("OGDs",""),
-  c("OGD's",""),
+  c("OGD\'s",""),
   c("P6",""),
   c("P7",""),
   c("PAB",""), #alert
   c("PBF",""),
-  c("PC's",""),
+  c("PC\'s",""),
   c("PCCE",""),
   c("PMBOK",""),
   c("PMI",""),
   c("PMP",""),
   c("PRINCE2",""),
-  c("PO's",""),
+  c("PO\'s",""),
   c("PPSL",""),
   c("PSSDSG",""),
   c("PSPC",""),
@@ -215,10 +242,10 @@ trueWords <- list(
   c("RMD","Resource Management Directorate"),
   c("RP1","Tenant Request for work"),
   c("RPA",""), #Alert
-  c("RPRD's",""),
+  c("RPRD\'s",""),
   c("RPSID","Real Property & Service Integration Directorate"),
   c("RSCAD",""),
-  c("SIR's",""),
+  c("SIR\'s",""),
   c("SIAD","Security and Internal Affairs Directorate"),
   c("SP 02",""),
   c("SP02",""),
@@ -230,23 +257,23 @@ trueWords <- list(
   c("SP3",""),
   c("TETSO",""),
   c("TNTSO",""),
-  c("TSO's",""),
+  c("TSO\'s",""),
   c("TSOS",""),
   c("TWTSO","west?"),
   c("WFH",""),
   c("","")
 )
 
-otherWords <- data.frame(
+otherWords <- rbind(
   c("St Catharines",""),
-  c("CFO's",""),
-  c("checkin's",""),
+  c("CFO\'s","Cheif Financial Officer's"),
+  c("checkin\'s",""),
   c("commissionaires",""),
   c("ebizz",""),
   c("efax",""),
   c("emails",""),
   c("false",""),
-  c("group's",""),
+  c("group\'s",""),
   c("infozone",""),
   c("lockdown",""),
   c("lockdowns",""),
@@ -259,7 +286,7 @@ otherWords <- data.frame(
   c("respendable",""),
   c("Screensharing",""),
   c("stakeholders",""),
-  c("team's",""),
+  c("team\'s",""),
   c("teleconferencing",""),
   c("voicemail",""),
   c("voip",""),
@@ -276,26 +303,26 @@ otherWords <- data.frame(
   c("www.deepl.com","")
   )
 
-dualWords <- list(
+dualWords <- rbind(
   c("AD","Assistant Director"),
-  c("AD's","Assistant Directors"),
+  c("AD\'s","Assistant Directors"),
   c("AC",""),
   c("FAB",""),
   c("OR","Operating Revenue"),
   c("SIP",""),
   c("CRA","Canada Revenue Agency"),
-  c("CRA's","Canada Revenue Agency's")
+  c("CRA\'s","Canada Revenue Agency's")
 )
 
-misSpelled <- list(
+misSpelled <- rbind(
   c("adminsitrave","administrative"),
   c("assesment","assessment"),
   c("beuracracy","bureaucracy"),
   c("carreer","career"),
   c("gliches","glitches"),
   c("clickets","clicks"),
-  c("Clients's","client's"),
-  c("Cluster's","clusters"),
+  c("Clients\'s","client's"),
+  c("Cluster\'s","clusters"),
   c("collegues","colleagues"),
   c("collugies","colleagues"),
   c("communicatiuons","communications"),
@@ -349,13 +376,13 @@ misSpelled <- list(
   c("unprecedent","unprecedented")
 )
 
-wordsForElimination <- 
-  c("building's", 
-    "https://",
-    " \(IAR\)",
-    )
+wordsForElimination <- rbind(
+  c("\\bbuilding\'s\\b",""),
+  c("\\bhttps://",""),
+  c("\\b\\(IAR\\)\\b","")
+)
 
-subWords <- list(
+subWords <- rbind(
   c("actioned","addressed"),
   c("cellphone","phone"),
   c("cell phone","phone"),
@@ -371,7 +398,7 @@ subWords <- list(
   c("covid-19","covid"),
   c("depts.","departments"),
   c("e.g","like"),
-  c("doctor's","doctor"),
+  c("doctor\'s","doctor"),
   c("Floorplan","floor plan"),
   c("admins","assistants"),
   c("admin ","assistant "),
@@ -381,7 +408,7 @@ subWords <- list(
   c("importants","important information"),
   c("inbox","mailbox"),
   c("googling","researching"),
-  c("USERID's","names"),
+  c("USERID\'s","names"),
   c("USERID","name"),
   c("JIRA","application 1"),
   c("WIKI","application 2"),
@@ -411,11 +438,11 @@ subWords <- list(
   c("IT ServiceDesk",""),
   c("SnagIT",""),
   c("SnipIt",""),
-  c("staff's","subordinate's"),
+  c("staff\'s","subordinate's"),
   c("telecom","telephone companies"),
   c("teleworking","telecommuting"),
   c("telework","telecommuting"),
-  c("how-to's","procedures"),
+  c("how-to\'s","procedures"),
   c("touchpoints","interactions"),
   c("transferees within the organization","transferees"),
   c("unknows","uncertainty"),
@@ -427,10 +454,22 @@ subWords <- list(
   c("WiFi","wireless internet access"),
   c("wifi","wireless internet access"),
   c("workplaces","work space"),
-  c("thank you's","commendations")
+  c("thank you\'s","commendations")
 )
 str_replace_all(target,"\bacheived\b","achieved")
 
 # See non-words
 nonWords <- as.character(forProcessEng[!isWord,1]$word)
-nonWords[order(nonWords)]
+orderedNonWords <- nonWords[order(nonWords)]
+
+# Replace terms
+trueWords
+otherWords
+dualWords
+misSpelled
+subWords
+
+# Extra
+d <- "off toff staffed on the cuff ff (fford's)"
+str_replace_all(d,"\\(fford\'s\\)","gg")
+str_replace_all(d,"\\bff","gg")
