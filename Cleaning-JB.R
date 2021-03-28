@@ -5,8 +5,9 @@ library(tidyr)
 library(tidytext)
 library(tidyverse)
 library(dplyr)
+library(stringr)
 
-## Words list
+## Words list that includes variations of words (e.g. searched, searching, etc. for search)
 # install.packages("qdapDictionaries")
 library(qdapDictionaries)
 
@@ -75,7 +76,10 @@ for(currentStr in forTranslation$response) {
   counterChar <- counterChar + str_length(currentStr)
 }
 
-# control + shift + C to activate / deactivate lines
+# Translational functional block
+## Commented out as running it too many time could mean $$$
+## control + shift + C to activate / deactivate lines
+
 # translationFeed <- forTranslation$response[!(forTranslation$response == "")]
 # 
 # translationFrame <- gl_translate(
@@ -101,12 +105,9 @@ for(currentStr in forTranslation$response) {
 # 
 # saveRDS(translationFrame,"frenchToEnglish.rds")
 
-g <- readRDS("frenchToEnglish.rds")
-
-write.xlsx(g, "frenchToEnglish.xlsx")
-
-
-### process every "value
+# How to read / write the file
+# g <- readRDS("frenchToEnglish.rds")
+# write.xlsx(g, "frenchToEnglish.xlsx")
 
 # Prepare data for assessment
 forProcessEng <- pivtData %>%
@@ -123,12 +124,14 @@ forProcessEng <- pivtData %>%
   # Get the unique words
   unique()
 
-# load the dictionary
+# load the dictionary (one source)
 wordVector <- qdapDictionaries::DICTIONARY$word
 
+# comprehensive source
 wordfile <- read.csv("/Users/johnbrooks/Desktop/Course Work/STAT5702/Project2/words.txt",sep="\n")
 wordsList <- tolower(wordfile$X2)
 
+# detect if the isolate word appears in the English language
 lengthProc <- nrow(forProcessEng)
 isWord <- rep(FALSE,lengthProc)
 for(currentIndex in 1:nrow(forProcessEng)) {
@@ -136,77 +139,138 @@ for(currentIndex in 1:nrow(forProcessEng)) {
     wordsList
 }
 
-#wordsList
-#write.xlsx(wordsList,"/Users/johnbrooks/Desktop/Course Work/STAT5702/Project2/words.xlsx")
+# Create patterns to find initialisms
+initialismPattern <- c(
+  # Natural strings
+  "\\b\\w+[[:upper:]]\\w+[[:upper:]]\\w+\\b",
+  "\\b[[:upper:]]\\w+[[:upper:]]\\w+\\b",
+  "\\b\\w+[[:upper:]]\\w+[[:upper:]]\\b",
+  "\\b\\w+[[:upper:]][[:upper:]]\\w+\\b",
+  "\\b[[:upper:]][[:upper:]]\\w+\\b",
+  "\\b\\w+[[:upper:]][[:upper:]]\\b",
+  "\\b[[:upper:]]\\w+[[:upper:]]\\b",
+  "\\b[[:upper:]][[:upper:]]\\b",
+  
+  # Possessive strings
+  "\\b\\w+[[:upper:]]\\w+[[:upper:]]\\w+\'s\\b",
+  "\\b[[:upper:]]\\w+[[:upper:]]\\w+\'s\\b",
+  "\\b\\w+[[:upper:]]\\w+[[:upper:]]\'s\\b",
+  "\\b\\w+[[:upper:]][[:upper:]]\\w+\'s\\b",
+  "\\b[[:upper:]][[:upper:]]\\w+\'s\\b",
+  "\\b\\w+[[:upper:]][[:upper:]]\'s\\b",
+  "\\b[[:upper:]]\\w+[[:upper:]]\'s\\b",
+  "\\b[[:upper:]][[:upper:]]\'s\\b"
+)
 
+# Collapse the responses into one searchable string
+responsesTogether <- paste(pivtData$response, collapse = "\n")
+
+# Get the initialisms
+listInitialisms <- unlist(str_extract_all(responsesTogether,initialismPattern)) %>%
+  unique() %>%
+  sort()
+
+# For each initialism find where it was discovered
+indexHold <- c()
+respondsHold <- c()
+for(initialismIndex in 1:length(listInitialisms)){
+  currentResponses <- grep(listInitialisms[initialismIndex],pivtData$response)
+  respondsHold <- c(respondsHold, currentResponses)
+  indexHold <- c(indexHold, rep(initialismIndex,length(currentResponses)))
+}
+
+# Decode verification frame
+verificationFrame <- data.frame(listInitialisms[indexHold],
+                                pivtData$response[respondsHold])
+
+# Write the verification fram to an excel file for ease of viewing
+write.xlsx(verificationFrame,"initialsVerification.xlsx")
+
+# Sort out the non-standard words
+## Initialisms found
 trueWords <- rbind(
-  c("RARAD",""),
-  c("ITB",""),
   c("ABSB",""),
-  c("CVB",""),
-  c("RMC",""),
-  c("CAS",""),
-  c("RC02",""),
   c("ABSC",""),
+  c("ABW",""),
+  c("ACO",""),
   c("AEP",""),
-  c("P3",""),
-  c("ATIPs",""), 
   c("ALASD",""),
-  c("EBus",""),
-  c("GCSurplus",""),
-  c("RP",""), 
-  c("BGIS",""),
-  c("PSPC",""),
-  c("TETSO",""), 
+  c("AMA",""), # mega alert
+  c("ATIPs",""), 
   c("BECC",""), 
+  c("BGIS",""),
+  c("BI",""), # alert
   c("BIQA",""),
-  c("CPB\'s",""),
+  c("BLO",""), # alert
   c("BMC",""),
-  c("DMC",""),
-  c("DGs",""),
-  c("RMC bootcamps",""),
+  c("CAPS",""),
+  c("CAS",""),
   c("CERB",""),
   c("CESB",""),
-  c("TBS",""),
-  c("FIs",""), #alert
+  c("client reorgs",""),
+  c("CNAS",""),
+  c("CO",""), # Alert - find with "CO,"
+  c("CoEs",""),
+  c("COMSEC",""),
+  c("CPB",""),
+  c("CPB\'s",""),
+  c("CPI",""),
   c("CPIs",""),
   c("CPSP",""),
   c("CSMD",""),
+  c("CVB",""),
+  c("DG","Director General"),
+  c("DGs","Directors General"),
+  c("DGFA",""), # French
+  c("DGO",""),
+  c("DGRH",""), # French
+  c("DMC",""),
+  c("DoF","Department of Finance"), #department of finance
   c("DSFA","Delegation of Spending and Financial Authority"),
   c("DTA",""),
+  c("EA requests",""),
   c("EAP",""), #Careful as  appears in many words
+  c("EBus",""),
   c("ECOTSO",""),
   c("EEs",""), #Careful as EEs 
+  c("EPS project (Synergy replacement)",""),
+  c("EPS projects",""),
+  c("EUR",""),
   c("EFM",""),
   c("EFMS",""),
-  c("FORD program","TBS program for the development of Financial Officers FIs"),
-  c("FORD","TBS program for the development of Financial Officers FIs"),
-  c("DoF","Department of Finance"), #department of finance
   c("FAB\'s",""),
   c("FAMF",""),
   c("FandA",""),
-  c("FMASD\'s","Financial Management & Advisory Services Directorate's"),
-  c("FMASD","Financial Management & Advisory Services Directorate"),
+  c("F&A",""),
+  c("FAMF",""),
+  c("FAQ","Frequently Asked Quesions"),
+  c("FIs",""), #alert
+  c("FM"),
+  c("FMA\'s",""),
   c("FMAs",""),
   c("FMAS",""),
-  c("FMA\'s",""),
-  c("FRAD\'s",""),
+  c("FMASD","Financial Management & Advisory Services Directorate"),
+  c("FMASD\'s","Financial Management & Advisory Services Directorate's"),
+  c("FMS","Financial Management System"),
+  c("FORD program","TBS program for the development of Financial Officers FIs"),
+  c("FORD","TBS program for the development of Financial Officers FIs"),
   c("FRAD",""),
+  c("FRAD\'s",""),
   c("FTEs",""),
+  c("GCSurplus",""),
   c("GCWCC",""),
-  c("NPSW",""),
   c("GLs",""),
   c("GS\'s",""),
   c("HRB",""),
   c("IAFCD",""),
   c("IBC",""),
   c("IBC\'s",""),
-  c("ZDFA_RPT",""),
   c("ID\'s",""), #alert
   c("ISD",""), #alert
   c("ITB",""),
-  c("ITSSP",""),
+  c("ITB",""),
   c("ITSS",""),
+  c("ITSSP",""),
   c("JVs",""),
   c("KRP\'s",""),
   c("MG1",""),
@@ -220,10 +284,12 @@ trueWords <- rbind(
   c("MyAccount",""),
   c("NFDC",""),
   c("NPSW",""),
+  c("NPSW",""),
   c("OAG",""),
   c("OGD",""),
-  c("OGDs",""),
   c("OGD\'s",""),
+  c("OGDs",""),
+  c("P3",""),
   c("P6",""),
   c("P7",""),
   c("PAB",""), #alert
@@ -233,41 +299,60 @@ trueWords <- rbind(
   c("PMBOK",""),
   c("PMI",""),
   c("PMP",""),
-  c("PRINCE2",""),
   c("PO\'s",""),
   c("PPSL",""),
-  c("PSSDSG",""),
+  c("PRINCE2",""),
   c("PSPC",""),
+  c("PSPC",""),
+  c("PSSDSG",""),
+  c("RARAD",""),
   c("RARAD",""),
   c("RBA",""), #Alert
   c("RC02",""),
-  c("client reorgs",""),
-  c("RR","respendable revenue"),
+  c("RC02",""),
+  c("RMC bootcamps",""),
+  c("RMC",""),
   c("RMD","Resource Management Directorate"),
+  c("RP",""), 
   c("RP1","Tenant Request for work"),
   c("RPA",""), #Alert
   c("RPRD\'s",""),
   c("RPSID","Real Property & Service Integration Directorate"),
+  c("RR","respendable revenue"),
   c("RSCAD",""),
-  c("SIR\'s",""),
   c("SIAD","Security and Internal Affairs Directorate"),
+  c("SIR\'s",""),
   c("SP 02",""),
   c("SP02",""),
-  c("SP2",""),
   c("SP05",""),
+  c("SP07",""),
+  c("SP2",""),
+  c("SP3",""),
   c("SP5",""),
   c("SP5s",""),
-  c("SP07",""),
-  c("SP3",""),
+  c("TBS",""),
   c("TETSO",""),
+  c("TETSO",""), 
   c("TNTSO",""),
   c("TSO\'s",""),
   c("TSOS",""),
   c("TWTSO","west?"),
   c("WFH",""),
+  c("ZDFA_RPT",""),
   c("","")
 )
 
+## Words that were capitalized for emphasis
+emphasisWords <- rbind(
+  c("ALL the slack","extreme amounts of slack"),
+  c("Merci BEAUCOUP!","Thank you very much!"),
+  c("Admin staff have been present DAILY","consistently worked every day"),
+  c("visited EVERY site regularly","consistently visited sites"),
+  c("Doing the job correctly THE FIRST TIME","providing quality work initially"),
+  c("","")
+)
+
+## Words that truly are english but were not detected as such
 otherWords <- rbind(
   c("St Catharines",""),
   c("CFO\'s","Cheif Financial Officer's"),
@@ -307,17 +392,23 @@ otherWords <- rbind(
   c("www.deepl.com","")
   )
 
+## Words that are english but are being used in a different way in the text
 dualWords <- rbind(
   c("AD","Assistant Director"),
   c("AD\'s","Assistant Directors"),
+  c("ADs",""),
   c("AC",""),
   c("FAB",""),
+  c("FAM",""),
+  c("FAD",""),
+  c("FI",""),
   c("OR","Operating Revenue"),
   c("SIP",""),
   c("CRA","Canada Revenue Agency"),
   c("CRA\'s","Canada Revenue Agency's")
 )
 
+## Misspellings
 misSpelled <- rbind(
   c("adminsitrave","administrative"),
   c("assesment","assessment"),
@@ -380,12 +471,14 @@ misSpelled <- rbind(
   c("unprecedent","unprecedented")
 )
 
+## Words that added no meaning to the sentences
 wordsForElimination <- rbind(
   c("\\bbuilding\'s\\b",""),
   c("\\bhttps://",""),
   c("\\b\\(IAR\\)\\b","")
 )
 
+## Words that may reasonably be subbed 
 subWords <- rbind(
   c("actioned","addressed"),
   c("cellphone","phone"),
@@ -474,6 +567,10 @@ misSpelled
 subWords
 
 # Extra
-d <- "off toff staffed on the cuff ff (fford's)"
+d <- "off toff staffed on the cuff ff (fford's), AoS AA"
 str_replace_all(d,"\\(fford\'s\\)","gg")
 str_replace_all(d,"\\bff","gg")
+
+
+
+str_replace_all(d,initialismPattern,"")
