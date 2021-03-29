@@ -478,7 +478,7 @@ otherWords <- rbind(
   c("workflows",""),
   c("worksite","on-site"),
   c("www.deepl.com","")
-  )
+)
 
 ## Words that are english but are being used in a different way in the text
 dualWords <- rbind(
