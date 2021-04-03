@@ -57,7 +57,7 @@ selectNames  <- newNames[c(3:length(newNames))]
 
 # Pivot the data
 pivtData <- procData %>%
-  
+   
   # Select only those columns with the ID and the phrases
   select(c("c_1","c_2",selectNames)) %>%
   
