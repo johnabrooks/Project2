@@ -36,7 +36,8 @@ columnNamesStore <- names(rawData)
 cleanData <- rawData
 names(cleanData) <- paste("c",1:ncol(cleanData),sep="_")
 
-View(cleanData)
+# If you want to see the data 
+# View(cleanData)
 
 nonCatColumns <- c(14,
                    22,
@@ -80,34 +81,68 @@ for(currentStr in forTranslation$response) {
 ## Commented out as running it too many time could mean $$$
 ## control + shift + C to activate / deactivate lines
 
-# translationFeed <- forTranslation$response[!(forTranslation$response == "")]
-# 
-# translationFrame <- gl_translate(
-#   t_string,
-#   target = "en",
-#   format = "text",
-#   source = "fr",
-#   model = "nmt"
-# )
-# 
-# for (i in 2:length(translationFeed)){
-#   if(i!=8){
-#     translationEnFr <- gl_translate(
-#       translationFeed[i],
-#       target = "en",
-#       format = "text",
-#       source = "fr",
-#       model = "nmt"
-#     )
-#   }
-#   translationFrame <- rbind(translationFrame, translationEnFr)
-# }
-# 
-# saveRDS(translationFrame,"frenchToEnglish.rds")
+pathToOfflineFiles <- "/Users/johnbrooks/Dropbox/R_files/Users/johnbrooks/Dropbox/Synced/R/STAT 5702/Store"
 
-# How to read / write the file
-# g <- readRDS("frenchToEnglish.rds")
-# write.xlsx(g, "frenchToEnglish.xlsx")
+if(!file.exists(paste(pathToOfflineFiles,"frenchToEnglish.rds",sep="/"))){
+  translationFeed <- forTranslation$response[!(forTranslation$response == "")]
+  
+  translationFrame <- gl_translate(
+    t_string,
+    target = "en",
+    format = "text",
+    source = "fr",
+    model = "nmt"
+  )
+  
+  for (i in 2:length(translationFeed)){
+    if(i!=8){
+      translationEnFr <- gl_translate(
+        translationFeed[i],
+        target = "en",
+        format = "text",
+        source = "fr",
+        model = "nmt"
+      )
+    }
+    translationFrame <- rbind(translationFrame, translationEnFr)
+  }
+  
+  # Save the feed 
+  saveRDS(translationFrame,
+          paste(pathToOfflineFiles,"frenchToEnglish.rds",sep="/"))
+  write.xlsx(translationFrame, paste(pathToOfflineFiles,"frenchToEnglish.rds",sep="/"))
+} else {
+  # How to read / write the file: just adjust the path
+  translationFrame <- readRDS(paste(pathToOfflineFiles,"frenchToEnglish.rds",sep="/"))
+}
+
+# Read in improved matrix
+if(file.exists(paste(pathToOfflineFiles,"frenchToEnglishM.xlsx",sep="/"))){
+  translationFrame <- 
+    readxl::read_xlsx(paste(pathToOfflineFiles,"frenchToEnglishM.xlsx",sep="/"))
+}
+
+# Create master translated tibble
+forTranslation %>%
+  filter(response != "") %>%
+  mutate(english = translationFrame$translatedText) -> FrenchSegmentResponse
+
+forTranslation %>%
+  filter(response == "") %>% 
+  mutate(english = "") -> FrenchSegmentNonResponse
+
+pivtData %>%
+  # Take out french
+  filter(c_2 == "EN") %>%
+  mutate(english = response) -> EnglishTibble
+
+# Master Response
+MasterResponse <- rbind(
+  FrenchSegmentResponse,
+  FrenchSegmentNonResponse,
+  EnglishTibble
+) %>% 
+  arrange(c_1,c_2,column)
 
 # Prepare data for assessment
 forProcessEng <- pivtData %>%
