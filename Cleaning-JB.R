@@ -162,7 +162,7 @@ forProcessEng <- pivtData %>%
 # load the dictionary (one source)
 wordVector <- qdapDictionaries::DICTIONARY$word
 
-# comprehensive source
+# Comprehensive source
 wordfile <- read.csv("/Users/johnbrooks/Desktop/Course Work/STAT5702/Project2/words.txt",sep="\n")
 wordsList <- tolower(wordfile$X2)
 
