@@ -110,10 +110,10 @@ if(!file.exists(paste(pathToOfflineFiles,"frenchToEnglish.rds",sep="/"))){
   # Save the feed 
   saveRDS(translationFrame,
           paste(pathToOfflineFiles,"frenchToEnglish.rds",sep="/"))
-  write.xlsx(translationFrame, paste(pathToOfflineFiles,"frenchToEnglish.rds",sep="/"))
+  write.xlsx(translationFrame, paste(pathToOfflineFiles,"frenchToEnglish",sep="/"))
 } else {
   # How to read / write the file: just adjust the path
-  translationFrame <- readRDS(paste(pathToOfflineFiles,"frenchToEnglish.rds",sep="/"))
+  translationFrame <- readRDS(paste(pathToOfflineFiles,"frenchToEnglish",sep="/"))
 }
 
 # Read in improved matrix
@@ -123,6 +123,7 @@ if(file.exists(paste(pathToOfflineFiles,"frenchToEnglishM.xlsx",sep="/"))){
 }
 
 # Create master translated tibble
+if(file.exists(paste(pathToOfflineFiles,"masterResponse.xlsx",sep="/"))){
 forTranslation %>%
   filter(response != "") %>%
   mutate(english = translationFrame$translatedText) -> FrenchSegmentResponse
@@ -143,6 +144,13 @@ MasterResponse <- rbind(
   EnglishTibble
 ) %>% 
   arrange(c_1,c_2,column)
+
+write.xlsx(MasterResponse, paste(pathToOfflineFiles,"masterResponse.xlsx",sep="/"))
+} else {
+  readxl::read_xlsx(paste(pathToOfflineFiles,"masterResponse.xlsx",sep="/"))
+}
+
+
 
 # Prepare data for assessment
 forProcessEng <- pivtData %>%
@@ -166,7 +174,7 @@ wordVector <- qdapDictionaries::DICTIONARY$word
 wordfile <- read.csv("/Users/johnbrooks/Desktop/Course Work/STAT5702/Project2/words.txt",sep="\n")
 wordsList <- tolower(wordfile$X2)
 
-# detect if the isolate word appears in the English language
+# Detect if the isolate word appears in the English language
 lengthProc <- nrow(forProcessEng)
 isWord <- rep(FALSE,lengthProc)
 for(currentIndex in 1:nrow(forProcessEng)) {
