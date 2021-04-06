@@ -35,7 +35,19 @@ from gensim.test.utils import common_texts
 model = Word2Vec(sentences=common_texts, vector_size=100, window=5, min_count=1, workers=4)
 model.save("word2vec.model")
 
+# Loading a prior model
+model = Word2Vec.load('pretrained_model.emb')
 
+# Add in the vocabulary from the new set
+model.build_vocab(new_sentences, update=True)
+
+# Continue with training
+model.train(new_sentences)
+
+
+
+
+# Other available data
 
 #  Reads ‘alice.txt’ file
 sample = open("/Users/johnbrooks/Dropbox/R_files/Users/johnbrooks/Dropbox/Synced/R/STAT 5702/Store/cra1.txt", "r")

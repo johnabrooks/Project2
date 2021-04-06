@@ -229,6 +229,12 @@ verificationFrame <- data.frame(listInitialisms[indexHold],
 # Write the verification fram to an excel file for ease of viewing
 write.xlsx(verificationFrame,"initialsVerification.xlsx")
 
+# Prepare to adjust names
+adjColNames <- function(dataFrameIn,newNamesIn) {
+  colnames(dataFrameIn) <- newNamesIn
+  return(dataFrameIn)
+}
+
 # Sort out the non-standard words
 ## Initialisms found
 trueWords <- rbind(
@@ -465,14 +471,14 @@ emphasisWords <- rbind(
 
 ## Words that truly are english but were not detected as such
 otherWords <- rbind(
-  c("CFO\'s","Cheif Financial Officer's"),
-  c("checkin\'s",""),
+  c("CFO's","Cheif Financial Officer's"),
+  c("checkin's",""),
   c("commissionaires",""),
   c("ebizz",""),
   c("efax",""),
   c("emails",""),
   c("false",""),
-  c("group\'s",""),
+  c("group's",""),
   c("infozone",""),
   c("InfoZone",""),
   c("LAN","local area network"),
@@ -487,7 +493,7 @@ otherWords <- rbind(
   c("ON","Ontario"),
   c("onsite","on-site"),
   c("PC","personal computer"),
-  c("PC\'s","personal computers"),
+  c("PC's","personal computers"),
   c("PDF",""),
   c("PEI","Prince Edward Island"),
   c("proactively",""),
@@ -502,7 +508,7 @@ otherWords <- rbind(
   c("St Catharines",""),
   c("stakeholders",""),
   c("TEAM","Microsoft Teams"),
-  c("team\'s",""),
+  c("team's",""),
   c("TEAMS","Microsoft Teams"),
   c("teleconferencing",""),
   c("voicemail",""),
@@ -527,7 +533,7 @@ otherWords <- rbind(
 dualWords <- rbind(
   c("AC",""),
   c("AD","Assistant Director"),
-  c("AD\'s","Assistant Directors"),
+  c("AD's","Assistant Directors"),
   c("ADs",""),
   c("CRA","Canada Revenue Agency"),
   c("CRA\'s","Canada Revenue Agency's"),
@@ -543,15 +549,15 @@ dualWords <- rbind(
 )
 
 ## Misspellings
-misSpelled <- rbind(
+misSpelled <- data.frame(rbind(
   c("adminsitrave","administrative"),
   c("assesment","assessment"),
   c("back and forths","redundant communication"),
   c("beuracracy","bureaucracy"),
   c("carreer","career"),
   c("clickets","clicks"),
-  c("Clients\'s","client's"),
-  c("Cluster\'s","clusters"),
+  c("Clients's","client's"),
+  c("Cluster's","clusters"),
   c("collegues","colleagues"),
   c("collugies","colleagues"),
   c("communicatiuons","communications"),
@@ -578,7 +584,7 @@ misSpelled <- rbind(
   c("intrical","integral"),
   c("leavning","leaving"),
   c("managment","management"),
-  c("nintey percent","90\%"),
+  c("nintey percent","90percent"),
   c("particualry","particularly"),
   c("perfer","prefer"),
   c("persay",""), #just eliminate / extraneous
@@ -604,7 +610,8 @@ misSpelled <- rbind(
   c("timelines","time lines"),
   c("unintentially","unintentionally"),
   c("unprecedent","unprecedented")
-)
+)) %>%
+  adjColNames(.,c("error","corrected"))
 
 ## Words that added no meaning to the sentences
 wordsForElimination <- rbind(
@@ -626,11 +633,11 @@ subWords <- rbind(
   c("covid-19","covid"),
   c("cross boarding","transferring"),
   c("depts.","departments"),
-  c("doctor\'s","doctor"),
+  c("doctor's","doctor"),
   c("e.g","like"),
   c("Floorplan","floor plan"),
   c("googling","researching"),
-  c("how-to\'s","procedures"),
+  c("how-to's","procedures"),
   c("i.e.","like"),
   c("i.e","like"),
   c("I.T","information technology"),
@@ -673,16 +680,16 @@ subWords <- rbind(
   c("smartphones","phones"),
   c("SnagIT",""),
   c("SnipIt",""),
-  c("staff\'s","subordinate's"),
+  c("staff's","subordinate's"),
   c("telecom","telephone companies"),
   c("telework","telecommuting"),
   c("teleworking","telecommuting"),
-  c("thank you\'s","commendations"),
+  c("thank you's","commendations"),
   c("touchpoints","interactions"),
   c("transferees within the organization","transferees"),
   c("unknows","uncertainty"),
   c("USERID","name"),
-  c("USERID\'s","names"),
+  c("USERID's","names"),
   c("videoconferencing","teleconferencing"),
   c("webform","electronic form"),
   c("webinars","internet seminars"),
@@ -709,11 +716,68 @@ dualWords
 misSpelled
 subWords
 
+# Change text to pattern
+textToPatternNonAlphaNum <- function(foundItem){
+  return(paste0("\\",foundItem))
+}
+
+textToPatternGeneral <- function(foundItem){
+  return(paste0("\\b",foundItem,"\\b"))
+}
+
+
+#########
+# Create pattern tibble
+misSpelled %>%
+  mutate(error = paste0("\\b",error,"\\b")) -> p1
+
+# Alternative
+# sapply(misSpelled$error,textToPatternGeneral) -> p2
+
+# Correct the terms
+frameSubstitute <- p1
+targetText <- "deal with adminsitrave"
+
+# Create text corrector function for easy mutation
+correctText <- function(targetTextIn){
+  resultText <- targetTextIn
+  for(misSpellingIndex in 1:dim(frameSubstitute)[1]){
+    resultText[1] <- str_replace_all(resultText[1],
+                                     frameSubstitute$error[misSpellingIndex], 
+                                     frameSubstitute$corrected[misSpellingIndex])
+  }
+  return(resultText)
+}
+
+correctText("deal with adminsitrave")
+
+
+
+
+
+
+
 # Extra
 d <- "off toff staffed on the cuff ff (fford's), AoS AA"
 str_replace_all(d,"\\(fford\'s\\)","gg")
 str_replace_all(d,"\\bff","gg")
 
+pattern <- "90\\%"
 
+str_replace_all("deal with adminsitrave",dim(p1)[1], p1$corrected[1])
+
+paste0("//b","adminsitrave","//b") == "\\badminsitrave\\b"
+
+str_replace_all("deal with adminsitrave", eval(expression(p1$error[1])), p1$corrected[1])
+str_replace_all("deal with radminsitrave", misSpelled$error[1], p1$corrected[1])
+
+# Okay not to escape: "!$%&()*+-./:;<=>?@~"
+
+# Note that we need to escape the \b
+pattern <- str_replace_all("!$90%&()*+-./:;<=>?@~", "[!$%&()*+-./:;<=>?@~]", "")
+
+                           # !"#$%&’()*+,-./:;<=>?@[]^_`{|}~
+                           
+str_replace_all("90% in 80's","90%","")
 
 str_replace_all(d,initialismPattern,"")
