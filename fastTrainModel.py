@@ -1,5 +1,6 @@
 # https://www.geeksforgeeks.org/python-word-embedding-using-word2vec/
 # http://man.hubwiz.com/docset/gensim.docset/Contents/Resources/Documents/radimrehurek.com/gensim/install.html
+# https://www.datacamp.com/community/tutorials/discovering-hidden-topics-python
 
 # Prep: Go to Terminal
 ## sudo pip3 install nltk
@@ -28,12 +29,47 @@ warnings.filterwarnings(action = 'ignore')
   
 import gensim
 from gensim.models import Word2Vec
+from gensim.models import KeyedVectors
 from gensim.test.utils import common_texts
 
+# Model Location
+basicModel = "/Users/johnbrooks/Dropbox/R_files/Users/johnbrooks/Dropbox/Synced/R/STAT 5702/Store/project2basic.emb"
+bias1model = "/Users/johnbrooks/Dropbox/R_files/Users/johnbrooks/Dropbox/Synced/R/STAT 5702/Store/project2bias1.emb"
+bias2model = "/Users/johnbrooks/Dropbox/R_files/Users/johnbrooks/Dropbox/Synced/R/STAT 5702/Store/project2bias2.emb"
+
+# Vectors Location
+bias1vectr = "/Users/johnbrooks/Dropbox/R_files/Users/johnbrooks/Dropbox/Synced/R/STAT 5702/Store/project2bias1.bin"
+bias2vectr = "/Users/johnbrooks/Dropbox/R_files/Users/johnbrooks/Dropbox/Synced/R/STAT 5702/Store/project2bias2.bin"
+
+# Load Google Example
+## gFile = "/Users/johnbrooks/Desktop/Course Work/STAT5702/Assignment-4/GoogleNews-vectors-negative300.bin"
+## googleWords = KeyedVectors.load_word2vec_format(gFile, binary=True)
+## googleWords.vectors.shape[0]
+## del googleWords
+
 # Begin training
-# https://radimrehurek.com/gensim/models/word2vec.html
+## Read: https://radimrehurek.com/gensim/models/word2vec.html
 model = Word2Vec(sentences=common_texts, vector_size=100, window=5, min_count=1, workers=4)
+
+## Save the full model
 model.save("word2vec.model")
+
+# Save/Load a binary/"Projection" file
+model.wv.save_word2vec_format("word2vecModel.bin", fvocab=None, binary=True)
+wv_from_bin = KeyedVectors.load_word2vec_format("word2vecModel.bin", binary=True)
+googleWords = KeyedVectors.load_word2vec_format(gFile, binary=True)
+gFile
+
+# Equivalent to
+## word_vectors = model.wv
+## word_vectors.save_word2vec_format("word2vecModel.bin", fvocab=None, binary=True)
+
+# https://radimrehurek.com/gensim/models/keyedvectors.html
+# Note that keyedVectors can save as a bin file but loose the information necessary to train future files
+# This vector for words projection without the hidden layers is what the r word2vec banks
+# This is why we can not progress the training of the 
+
+# Now getting another model
 
 # Loading a prior model
 model = Word2Vec.load('pretrained_model.emb')
@@ -94,4 +130,6 @@ print("Cosine similarity between 'alice' " +
             "and 'machines' - Skip Gram : ",
       model2.similarity('alice', 'machines'))
   
+
+
 
