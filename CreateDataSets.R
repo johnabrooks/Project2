@@ -12,6 +12,10 @@ library(R.utils)
 questionsInFile <- "/Users/johnbrooks/Dropbox/R_files/Users/johnbrooks/Dropbox/Synced/R/STAT 5702/Store/masterResponse.xlsx"
 questionsData <- readxl::read_xlsx(questionsInFile)
 
+adjColNames <- function(dfIn,newNames){
+  return(colnames(dfIn) <- newNames)
+}
+
 # Discovered misspelling
 misSpelled <- data.frame(rbind(
   c("adminsitrave","administrative"),
@@ -96,10 +100,10 @@ for(indexAnswer in 1:dim(misSpelled)[1]) {
 # Once we have adjusted the entences properly
 sentenceTokenize = noNAAnswers %>%
   unnest_tokens(output = sentences, token="sentences", input = english) %>%
-  select(column, sentences)
+  select(c_1, column, sentences)
 
-sentenceTokenize %>%
-  mutate(sentences = str_replace_all(sentences,"[[:punct:]]"," ")) -> dePunct
+dePunct = sentenceTokenize %>%
+  mutate(sentences = str_replace_all(sentences,"[[:punct:]]"," "))
 
 # Number of questions
 questionColumns <- unique(questionsData$column)
@@ -108,9 +112,14 @@ questionColumns <- unique(questionsData$column)
 for(indexQuestion in 1:length(questionColumns)){
   dePunct %>%
     filter(column == questionColumns[indexQuestion]) %>%
-    select(sentences) -> currentPull
-  xlsx::write.xlsx2(data.frame(currentPull), paste0(
+    select(c_1,sentences) %>%
+    data.frame() -> currentPull
+  
+  # Need to 0 this so it will play nicely with sklearn
+  rownames(currentPull) <- as.numeric(rownames(currentPull))-1
+  xlsx::write.xlsx2(currentPull, paste0(
     "/Users/johnbrooks/Dropbox/R_files/Users/johnbrooks/Dropbox/Synced/R/STAT 5702/Store/",
     questionColumns[indexQuestion],
     ".xlsx"))
 }
+

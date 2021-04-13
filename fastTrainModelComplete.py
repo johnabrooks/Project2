@@ -134,6 +134,31 @@ def process_tokens(input_text_units, target_column='sentences'):
 
     return processed_tokens
 
+## For taking word units like paragraphs or sentences into word tokens without frills
+def reprocess_tokens(input_text_units, target_column='sentences'):
+    """
+    make just simple token lists
+    """
+    
+    ## Tokenize
+    processed_tokens = []
+    
+    for i in input_text_units[target_column]:
+        ### clean and tokenize document string
+        ### lower case attribute required for stemmer
+        raw = i.lower()
+
+        ### tokenizer
+        tokens = word_tokenize(raw)
+        
+        ### put the tokens together
+        ##linked_tokens = [i for i in tokens]
+        
+        ### add tokens to list
+        processed_tokens.append(tokens)
+
+    return processed_tokens
+
 ## detokenize for sklearn
 ### https://towardsdatascience.com/latent-semantic-analysis-deduce-the-hidden-topic-from-the-document-f360e8c0614b
 ### https://scikit-learn.org/
@@ -255,6 +280,26 @@ def SVD_topic(dfInIt, numTopicsIn = 2):
     encoding_matrix["word"] = dictionary
 
     return topic_encoded_df, encoding_matrix
+
+# Word2Vec
+def create_sg_model(sentsIn, columnFocus = 'prep_sentences', num_iter = 100):
+    """
+    create skip gram models to find words commonly in the vacinity
+    """
+    # initiate model
+    ## use skip gram model as we wish to take a focal word and predict its context
+    modelX = Word2Vec(min_count=1, vector_size=50, workers=cores-1, window=5, sg=1, max_vocab_size=100000)
+
+    ## get the tokens / words
+    tokIn = reprocess_tokens(sentsIn,columnFocus)
+
+    ## build the vocabulary with the tokens
+    modelX.build_vocab(tokIn, update = False)
+
+    ## train the model
+    modelX.train(tokIn,total_examples=modelX.corpus_count,epochs=num_iter)
+        
+    return modelX
 
 # Suppress warnings
 warnings.filterwarnings(action = 'ignore')
@@ -387,74 +432,8 @@ with pd.ExcelWriter(os.path.join(data_path, "topicOut.xlsx")) as writer:
     te46.to_excel(writer, sheet_name='c_46')
     te48.to_excel(writer, sheet_name='c_48')
 
-#encoding_matrix
-
-# Read out
-## print(c14)
-## print(ml14[1].print_topics(num_topics=2, num_words=5))
-## print(c22)
-##print(ml22[1].print_topics(num_topics=2, num_words=5))
-##
-##print(c30)
-##print(ml30[1].print_topics(num_topics=2, num_words=5))
-##
-##print(c40)
-##print(ml40[1].print_topics(num_topics=2, num_words=5))
-##
-##print(c43)
-##print(ml43[1].print_topics(num_topics=2, num_words=5))
-##
-##print(c45)
-##print(ml45[1].print_topics(num_topics=2, num_words=5))
-##
-##print(c46)
-##print(ml46[1].print_topics(num_topics=2, num_words=5))
-##
-##print(c48)
-##print(ml48[1].print_topics(num_topics=2, num_words=5))
-
-### For word2Vec
-
-#lower_sents = [i.lower() for i in c22df['sentences']]
-#tokenized_sents = [lower_sents(i.lower()) for i in c22df['sentences']]
-#stemmed_tokens = [p_stemmer.stem(i) for i in tokenized_sents]
-
-## Alternative
-### tokenized_sents = [regexp_tokenize(i,"[\w']+") for i in c22df['sentences']]
-        ### there is an ever so subtle difference between algorhthyms
-        ### note the number of sentece lines
-
-
-## https://www.datacamp.com/community/tutorials/discovering-hidden-topics-python
-## Stemming: https://tartarus.org/martin/PorterStemmer/
-
-
-
-# p_stemmer = PorterStemmer()
-# Train
-
-
-
+# 2. Word2Vec Segment
 ## Model the topic to find synonyms
-def create_sg_model(sentsIn, columnFocus = 'prep_sentences', num_iter = 100):
-    """
-    create skip gram models to find words commonly in the vacinity
-    """
-    # initiate model
-    ## use skip gram model as we wish to take a focal word and predict its context
-    model = Word2Vec(min_count=1, vector_size=50, workers=cores-1, window=5, sg=1, max_vocab_size=100000)
-
-    ## get the tokens / words
-    tokIn = process_tokens(sentsIn,columnFocus)
-
-    ## build the vocabulary with the tokens
-    model.build_vocab(tokIn, update = False)
-
-    ## train the model
-    model.train(tokIn,total_examples=model.corpus_count,epochs=num_iter)
-        
-    return model
-
 model14 = create_sg_model(c14df)
 model14.wv.most_similar('work')[:10]
 model14.wv.most_similar('train')[:10]
@@ -496,14 +475,6 @@ model48.wv.most_similar('client')[:10]
 
 # note that as soon as the vocab is updated the corpus is updated
 # model.build_vocab(tokenized_sents, update = False)
-
-
-
-
-
-
-
-
 
 # Integrate into r with reticulate
 ## https://rstudio.github.io/reticulate/articles/r_markdown.html
