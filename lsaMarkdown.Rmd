@@ -7,6 +7,7 @@ output: pdf_document
 
 # Goals
 
+## Stated Directives
 - Overview description of what you are going to be doing (2 points)
 - Organization (2 points)
 - At least 1 different analysis per person in your group regardless of the division of labour ( 2
@@ -16,6 +17,9 @@ Note the following are applied once per different analysis. “The Markdown docu
 - Describe limitations and clarifications of decisions made that might impact your results ( 2
 points)
 - Results explained. If you have good results, give some interpretation. If method(s) attempted won’t work explain what you think the problem might be. (2 points )
+
+## Approach
+At our briefing with the Canada Revenue Agency (CRA) they indicated an interest in the breadth and depth of the insights collected by their survey. Not only were there general themes/topic but there were some very specific concerns raised. We show in this document how we tried to capture both the overarching story as well as very targeted morsels of information and then extract from that emotional context.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -898,6 +902,8 @@ for(indexQuestion in 1:length(questionColumns)){
 ### https://scikit-learn.org/stable/install.html
 ```
 
+First we considered LSA as a rapid alternative to Latent Direchlet Allocation (LDA). LSA provided a single value decomposition alternative to LDA. The concept of coherence was also useful in this case. Data analysis in this section began with removal of common English stop words. Sentences were then manually verified to ensure important terms were not removed. Stemming was then used to reduce words to their roots to reduce the effects of tense and voice on creating unnecessary divisions between effectively equivalent words. Given the restricted amount of data, use of a UMass algorithm was considered potentially superior to an arbitrary spit and training (i.e., test and training sets) and so this was implemented. We later look at performance of LDA. Note that to maximize the capacity for accurate extraction of topic number, a median of boot straps of topic number estimates was computed and used to develop the later models.
+
 ```{python LSA}
 # importing all necessary modules
 ## Data managment
@@ -1095,7 +1101,7 @@ def rep_coherence(dictionaryIn,DTMIn,tokensIn, num_iter = 10000):
     """
     coherence_lists = []
     for iter_num in range(num_iter):
-        print(iter_num)
+        # print(iter_num)
         modelList, cohere = get_coherence_for_set_DTM(dictionaryIn,
                                               DTMIn,
                                               tokensIn,
@@ -1196,6 +1202,7 @@ c14df['prep_sentences'] = detokenize_for_sk(xOut)
 ### We add 2 because the index is returned
 #### The indicies indicate the number of topic where index 0 = 2 topics, 1 = 3...
 top14 = rep_coherence(dOut,DTMOut,xOut,number_Iterations) + 2
+print(top14)
 
 varInIt = c22df
 xOut = process_tokens(varInIt)
@@ -1203,6 +1210,7 @@ dOut,DTMOut = dictionary_DTM(xOut)
 ml22, c22 = get_coherence_for_set_DTM(dOut,DTMOut,xOut,10)
 c22df['prep_sentences'] = detokenize_for_sk(xOut)
 top22 = rep_coherence(dOut,DTMOut,xOut,number_Iterations) + 2
+print(top22)
 
 varInIt = c30df
 xOut = process_tokens(varInIt)
@@ -1210,6 +1218,7 @@ dOut,DTMOut = dictionary_DTM(xOut)
 ml30, c30 = get_coherence_for_set_DTM(dOut,DTMOut,xOut,10)
 c30df['prep_sentences'] = detokenize_for_sk(xOut)
 top30 = rep_coherence(dOut,DTMOut,xOut,number_Iterations) + 2
+print(top30)
 
 varInIt = c40df
 xOut = process_tokens(varInIt)
@@ -1217,6 +1226,7 @@ dOut,DTMOut = dictionary_DTM(xOut)
 ml40, c40 = get_coherence_for_set_DTM(dOut,DTMOut,xOut,10)
 c40df['prep_sentences'] = detokenize_for_sk(xOut)
 top40 = rep_coherence(dOut,DTMOut,xOut,number_Iterations) + 2
+print(top40)
 
 varInIt = c41df
 xOut = process_tokens(varInIt)
@@ -1224,6 +1234,7 @@ dOut,DTMOut = dictionary_DTM(xOut)
 ml41, c41 = get_coherence_for_set_DTM(dOut,DTMOut,xOut,10)
 c41df['prep_sentences'] = detokenize_for_sk(xOut)
 top41 = rep_coherence(dOut,DTMOut,xOut,number_Iterations) + 2
+print(top41)
 
 varInIt = c43df
 xOut = process_tokens(varInIt)
@@ -1231,6 +1242,7 @@ dOut,DTMOut = dictionary_DTM(xOut)
 ml43, c43 = get_coherence_for_set_DTM(dOut,DTMOut,xOut,10)
 c43df['prep_sentences'] = detokenize_for_sk(xOut)
 top43 = rep_coherence(dOut,DTMOut,xOut,number_Iterations) + 2
+print(top43)
 
 varInIt = c45df
 xOut = process_tokens(varInIt)
@@ -1238,6 +1250,7 @@ dOut,DTMOut = dictionary_DTM(xOut)
 ml45, c45 = get_coherence_for_set_DTM(dOut,DTMOut,xOut,10)
 c45df['prep_sentences'] = detokenize_for_sk(xOut)
 top45 = rep_coherence(dOut,DTMOut,xOut,number_Iterations) + 2
+print(top45)
 
 varInIt = c46df
 xOut = process_tokens(varInIt)
@@ -1245,6 +1258,7 @@ dOut,DTMOut = dictionary_DTM(xOut)
 ml46, c46 = get_coherence_for_set_DTM(dOut,DTMOut,xOut,10)
 c46df['prep_sentences'] = detokenize_for_sk(xOut)
 top46 = rep_coherence(dOut,DTMOut,xOut,number_Iterations) + 2
+print(top46)
 
 varInIt = c48df
 xOut = process_tokens(varInIt)
@@ -1252,6 +1266,7 @@ dOut,DTMOut = dictionary_DTM(xOut)
 ml48, c48 = get_coherence_for_set_DTM(dOut,DTMOut,xOut,10)
 c48df['prep_sentences'] = detokenize_for_sk(xOut)
 top48 = rep_coherence(dOut,DTMOut,xOut,number_Iterations) + 2
+print(top48)
 
 # 2. SK learn Segment
 ## Reference
@@ -1294,43 +1309,43 @@ with pd.ExcelWriter(os.path.join(data_path, "topicOut.xlsx")) as writer:
 # 2. Word2Vec Segment
 ## Model the topic to find synonyms
 model14 = create_sg_model(c14df)
-model14.wv.most_similar('work')[:10]
-model14.wv.most_similar('train')[:10]
-model14.wv.most_similar('tool')[:10]
+t14t1 = model14.wv.most_similar('work')[:10]
+t14t2 = model14.wv.most_similar('train')[:10]
+t14t3 = model14.wv.most_similar('tool')[:10]
 
 model22 = create_sg_model(c22df)
-model22.wv.most_similar('email')[:10]
-model22.wv.most_similar('team')[:10]
+t22t1 = model22.wv.most_similar('email')[:10]
+t22t2 = model22.wv.most_similar('team')[:10]
 
 model30 = create_sg_model(c30df)
-model30.wv.most_similar('servic')[:10]
-model30.wv.most_similar('burden')[:10]
+t30t1 = model30.wv.most_similar('servic')[:10]
+t30t2 = model30.wv.most_similar('burden')[:10]
 
 model40 = create_sg_model(c40df)
-model40.wv.most_similar('project')[:10]
-model40.wv.most_similar('procur')[:10]
-model40.wv.most_similar('fund')[:10]
+t40t1 = model40.wv.most_similar('project')[:10]
+t40t2 = model40.wv.most_similar('procur')[:10]
+t40t3 = model40.wv.most_similar('fund')[:10]
 
 model41 = create_sg_model(c41df)
-model41.wv.most_similar('time')[:10]
-model41.wv.most_similar('servic')[:10]
+t41t1 = model41.wv.most_similar('time')[:10]
+t41t2 = model41.wv.most_similar('servic')[:10]
 
 model43 = create_sg_model(c43df)
-model43.wv.most_similar('time')[:10]
-model43.wv.most_similar('respons')[:10]
+t43t1 = model43.wv.most_similar('time')[:10]
+t43t2 = model43.wv.most_similar('respons')[:10]
 
 model45 = create_sg_model(c45df)
-model45.wv.most_similar('time')[:10]
-model45.wv.most_similar('manag')[:10]
+t45t1 = model45.wv.most_similar('manag')[:10]
+t45t2 = model45.wv.most_similar('time')[:10]
 
 model46 = create_sg_model(c46df)
-model46.wv.most_similar('home')[:10]
-model46.wv.most_similar('provid')[:10]
+t46t1 = model46.wv.most_similar('home')[:10]
+t46t2 = model46.wv.most_similar('provid')[:10]
 
 model48 = create_sg_model(c48df)
-model48.wv.most_similar('listen')[:10]
-model48.wv.most_similar('feedback')[:10]
-model48.wv.most_similar('client')[:10]
+t48t1 = model48.wv.most_similar('listen')[:10]
+t48t2 = model48.wv.most_similar('feedback')[:10]
+t48t3 = model48.wv.most_similar('client')[:10]
 
 # note that as soon as the vocab is updated the corpus is updated
 # model.build_vocab(tokenized_sents, update = False)
@@ -1339,6 +1354,166 @@ model48.wv.most_similar('client')[:10]
 ## https://rstudio.github.io/reticulate/articles/r_markdown.html
 ```
 
+Here the topics are presented including their interpretation and top 10 associated words. This is followed by the use of a keyword that feeds into a word to vector model. The idea for this was that one could visualize the topic but then use the context surrounding a word to see what other words are similar in usage. Even if the number of words is small in the corpus overall, if the particular word / concept was consistently attached to the key word, sometimes even exclusively, this with would be highlighted. In essence the topic analysis gave themes and the word embedding analysis gave insights into particular concepts related to those topic. A sum of vectors to express a topic was also considered but not implented presently.
+
 ```{r cacheOutPython, cache=TRUE}
 
+# Read out python list variables for better presentation
+feedTwoByTwo <- function(pythonList){
+  newVector <- unlist(pythonList)
+  indiciesVectO <- seq(1,length(newVector),2)
+  indiciesVectE <- seq(2,length(newVector),2)
+  return(data.frame(word = newVector[indiciesVectO], 
+                    similarity = newVector[indiciesVectE]))
+}
+
+# Draw the top 10 words associated with a select topic
+drawTop10 <- function(dfInD,topicOfInterest = 1){
+  orderVect <- order(dfInD[,topicOfInterest],decreasing = TRUE)
+  return(dfInD$word[orderVect[1:10]])
+}
+
+# Question 10. Training / Tools Desired
+## Topic Interpretation: working from home
+drawTop10(py$em14,1)
+
+## Word tested: "work"
+(feedTwoByTwo(py$t14t1))
+
+## Topic Interpretation: training concerns - want formalized / online / at home
+drawTop10(py$em14,2)
+
+## Word tested: "train"
+(feedTwoByTwo(py$t14t2))
+
+## Topic Interpretation: tools available / printer and scanner more than software
+drawTop10(py$em14,3)
+
+## Word tested: "tool"
+(feedTwoByTwo(py$t14t3))
+
+# Question 17. When communicating with my clients
+## Topic Interpretation: email as most important tool
+drawTop10(py$em22,1)
+
+## Word tested: "email"
+(feedTwoByTwo(py$t22t1))
+
+## Topic Interpretation: team work (ms teams)
+drawTop10(py$em22,2)
+
+## Word tested: "team"
+(feedTwoByTwo(py$t22t2))
+#(feedTwoByTwo(py$t22t3))
+
+# Question 19. Prevents client service
+## Note that a negative result category (i.e., no response) was skipped
+## Topic Interpretation: service quality 
+drawTop10(py$em30,2)
+
+## Word tested: "servic"
+(feedTwoByTwo(py$t30t1))
+
+## Topic Interpretation: impediments / burden of administration
+drawTop10(py$em30,3)
+
+## Word tested: "burden"
+(feedTwoByTwo(py$t30t2))
+#(feedTwoByTwo(py$t30t3))
+
+# Question 22. Policy improvement
+## Topic Interpretation: project management / projection process
+drawTop10(py$em40,1)
+
+## Word tested: "project"
+(feedTwoByTwo(py$t40t1))
+
+## Topic Interpretation: procurement
+drawTop10(py$em40,2)
+
+## Word tested: "procur"
+(feedTwoByTwo(py$t40t2))
+
+## Topic Interpretation: funding distribution
+drawTop10(py$em40,3)
+
+## Word tested: "fund"
+(feedTwoByTwo(py$t40t3))
+
+# Question 23. Successes
+## Topic Interpretation: service / client responsibility excellence
+drawTop10(py$em41,1)
+
+## Word tested: "time"
+(feedTwoByTwo(py$t41t1))
+
+## Topic Interpretation: services provided
+drawTop10(py$em41,2)
+
+## Word tested: "servic"
+(feedTwoByTwo(py$t41t2))
+#(feedTwoByTwo(py$t41t3))
+
+# Question 25. Compliments to respondant
+## Topic Interpretation: time / timeliness is good
+drawTop10(py$em43,1)
+
+## Word tested: "time"
+(feedTwoByTwo(py$t43t1))
+
+## Topic Interpretation: fast and accurate communication / response
+drawTop10(py$em43,2)
+
+## Word tested: "respons"
+(feedTwoByTwo(py$t43t2))
+#(feedTwoByTwo(py$t43t3))
+
+# Question 27. Services received by respondant
+## Topic Interpretation: managers qualities / support
+drawTop10(py$em45,1)
+
+## Word tested: "manag"
+(feedTwoByTwo(py$t45t1))
+
+## Topic Interpretation: time / timeliness is good
+drawTop10(py$em45,2)
+
+## Word tested: "time"
+(feedTwoByTwo(py$t45t2))
+#(feedTwoByTwo(py$t45t3))
+
+# Question 28. Impact of restrictions
+## Topic Interpretation: working from home not impactful
+drawTop10(py$em46,1)
+
+## Word tested: "home"
+(feedTwoByTwo(py$t46t1))
+
+## Topic Interpretation: what can be offered has not changed
+drawTop10(py$em46,2)
+
+## Word tested: "provid"
+(feedTwoByTwo(py$t46t2))
+#(feedTwoByTwo(py$t46t3))
+
+# Question 30. General Comments
+## Topic Interpretation: appreciation / being listened to
+drawTop10(py$em48,1)
+
+## Word tested: "listen"
+(feedTwoByTwo(py$t48t1))
+
+## Topic Interpretation: appreciation / comments of service and needs
+drawTop10(py$em48,2)
+
+## Word tested: "feedback"
+(feedTwoByTwo(py$t48t2))
+
+## Topic Interpretation: client experience unimpaired
+drawTop10(py$em48,3)
+
+## Word tested: "client"
+(feedTwoByTwo(py$t48t3))
 ```
+
+Some of the word embedding projections were quite reasonable while others are hard to interpret. For example, in question 10 the "train" topic did identify the desire for formal online learning. The "tool" topic did capture that printer and scanner were among the most desirable additions for tools. Quession 19 did indeed also have a clear link between "burden" of work and beuracracy. Question 22 stongly identified projection processes as being unpleasant. Where it was not successful it may be that the select key term is not close enough to the focus of a topic / mentioned often making co-occurrence very difficult to ascertain with certainty. I had considered creating a combination vector to assess distance between term as an alternate topic representation although that is not presented in the current analysis.
