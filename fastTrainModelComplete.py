@@ -77,6 +77,7 @@ from nltk.stem.porter import PorterStemmer
 from gensim.models.coherencemodel import CoherenceModel
 
 ### sklearn
+from sklearn import cluster, metrics
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
 
@@ -432,7 +433,7 @@ with pd.ExcelWriter(os.path.join(data_path, "topicOut.xlsx")) as writer:
     te46.to_excel(writer, sheet_name='c_46')
     te48.to_excel(writer, sheet_name='c_48')
 
-# 2. Word2Vec Segment
+# 3. Word2Vec Segment
 ## Model the topic to find synonyms
 model14 = create_sg_model(c14df)
 model14.wv.most_similar('work')[:10]
@@ -472,6 +473,94 @@ model48 = create_sg_model(c48df)
 model48.wv.most_similar('listen')[:10]
 model48.wv.most_similar('feedback')[:10]
 model48.wv.most_similar('client')[:10]
+
+# Clustering
+## https://ai.intelligentonlinetools.com/ml/k-means-clustering-example-word2vec/
+## https://www.datanovia.com/en/lessons/determining-the-optimal-number-of-clusters-3-must-know-methods/
+## https://scikit-learn.org/stable/modules/clustering.html
+
+from sklearn import cluster, metrics
+
+# Word2Vec Clustering Metrics
+def find_silhouettes(w2vModel):
+    """
+    uses skip gram models to find words commonly in the vacinity
+    """
+    ## Create Silhouettes Hold
+    silhouettesOut = []
+    clustersOut = []
+    for num_clusters_ind in range(2, 11):
+        
+        # Set up kmeans model
+        kmeansOut = cluster.KMeans(n_clusters=num_clusters_ind,
+                                  random_state=12345)
+
+        # Capture dictionary
+        dictOut = w2vModel.wv.key_to_index.keys()
+
+        # Cluster
+        kmeansOut.fit(w2vModel.wv[dictOut])
+
+        # Get the Silhouette
+        silhouetteAveOut = metrics.silhouette_score(w2vModel.wv[dictOut],
+                                               kmeansOut.labels_,
+                                               metric='euclidean')
+
+        # Store the data 
+        silhouettesOut.append(silhouetteAveOut)
+        clustersOut.append(num_clusters_ind)
+
+    # find the maximum silhouette
+    max_value = max(silhouettesOut)
+    max_index = silhouettesOut.index(max_value)
+        
+    return clustersOut[max_index]
+
+# Word2Vec Clustering Model
+def create_Clusters(w2vModel,kClusters):
+    """
+    create cluster model
+    """
+
+    # Set up kmeans model
+    kmeansOut = cluster.KMeans(n_clusters=kClusters,
+                               random_state=12345)
+
+    # Capture dictionary
+    dictOut = w2vModel.wv.key_to_index.keys()
+
+    # Get Embeddings
+    embeddingsOut = w2vModel.wv[dictOut]
+
+    # Cluster
+    kmeansOut.fit(embeddingsOut)
+        
+    return kmeansOut.labels_, embeddingsOut, dictOut
+
+# Find the number of topics with a limit of 10 topics
+topW14 = find_silhouettes(model14)
+topW22 = find_silhouettes(model22)
+topW30 = find_silhouettes(model30)
+topW40 = find_silhouettes(model40)
+topW41 = find_silhouettes(model41)
+topW43 = find_silhouettes(model43)
+topW45 = find_silhouettes(model45)
+topW46 = find_silhouettes(model46)
+topW48 = find_silhouettes(model48)
+
+# Create the clustering labels
+kO14, emb14, Dic14 = create_Clusters(model14,topW14)
+kO22, emb22, Dic22 = create_Clusters(model22,topW22)
+kO30, emb30, Dic30 = create_Clusters(model30,topW30)
+kO40, emb40, Dic40 = create_Clusters(model40,topW40)
+kO41, emb41, Dic41 = create_Clusters(model41,topW41)
+kO43, emb43, Dic43 = create_Clusters(model43,topW43)
+kO45, emb45, Dic45 = create_Clusters(model45,topW45)
+kO46, emb46, Dic46 = create_Clusters(model46,topW46)
+kO48, emb48, Dic48 = create_Clusters(model48,topW48)
+
+# Make the embdings into frames 
+dfemb14 = pd.DataFrame(emb14)
 
 # note that as soon as the vocab is updated the corpus is updated
 # model.build_vocab(tokenized_sents, update = False)

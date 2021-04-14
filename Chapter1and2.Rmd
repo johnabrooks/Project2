@@ -1,0 +1,821 @@
+---
+title: ''
+pagetitle: 'JBChapter1and2'
+author: ''
+date: ''
+output: html_document
+---
+
+# Chapter 1: Introduction
+
+## Section 1-1: Project Specifications
+
+- Overview description of what you are going to be doing (2 points)
+- Organization (2 points)
+- At least 1 different analysis per person in your group regardless of the division of labour ( 2
+points)
+Note the following are applied once per different analysis. “The Markdown document should include results of at least 1 different analysis per person in your group”
+- Data cleaning / preparation decisions should be justified ( 2 points)
+- Describe limitations and clarifications of decisions made that might impact your results ( 2
+points)
+- Results explained. If you have good results, give some interpretation. If method(s) attempted won’t work explain what you think the problem might be. (2 points )
+
+## Section 1-2: Overview
+
+In this document we present the technical analysis pertaining to the content of a Canada Revenue Agency (CRA) employee survey. At our briefing with the CRA, they indicated an interest in the breadth and depth of the insights collected by their survey. They eluded to the fact that, not only were there general themes/topics, but there were some very specific concerns raised emphatically. We show in this document how we captured both the overarching story as well as very targeted morsels of information and then extracted from that emotional context.
+
+## Section 1-3: Methods
+
+To understand items discussed, we implemented 2 principal forms of topic analysis: Latent Dirichlet Allocation (LDA), and Word embedding (word2vec) analysis guided by Latent Semantic Allocation (LSA) versus k-means cosine similarity clustering. To understand what was said about those topics, we used semantic analysis guided by topics and catagorical information provided.
+
+LDA was the first topic modeling method used in our analysis. It was performed on each of the 9 open response questions in the survey to determine common themes and topics within the individual questions. Perplexity, with collapsed Gibbs Sampling, was used to find the ideal number of topics. This provided per-topic probabilities of the presence of words within the topic (beta values) as well as a per-topic probabilities of a response corresponding to that topic (gamma values). The beta values were used to determine what the themes were within a topic via examination of the words with the highest beta values. The gamma values were then used to assign topics to each individual response to that question, which will be used to inform the sentiment analysis.
+
+LSA was then similarly used (each question modeled separately) with the supposition that on a small scale such as ours that algebraic / singular value decomposition may provide a superior result compared to the probabilistic / Bayesian approach of LDA. In this instance, coherence was computed using the UMass algorithm and estimates of ideal topic number were bootstrapped to provide an ultimate proposal as to the number of latent topics. Singular words to describe the topic were selected in an attempt to review associated words via a word2vec model. K-mean clustering was then applied to the word2Vec models themselves to attempt to appreciate the topics.
+
+Finally, to understand what was said / the valence / emotional context of what was said. Semantic Analysis (SA) was applied. Categorical variables were used to look for general tendencies in feedback and then views of the various topics were assessed. All analysis was complete using R statistical software and Python.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Installs if needed
+# install.packages("googleLanguageR")
+# install.packages("ggrepel")
+# install.packages("qdapDictionaries")
+# install.packages("reticulate")
+# install.packages("Rtsne")
+
+# Load General Packages
+library(dplyr)
+library(R.utils)
+library(Rtsne)
+library(stringr)
+library(tidyr)
+library(tidytext)
+library(tidyverse)
+library(word2vec)
+library(xlsx)
+
+# Load Visualization Packages
+library(ggplot2)
+library(ggrepel)
+library(gridExtra)
+
+# For word searching
+## Words list that includes variations of words (e.g. searched, searching, etc. for search)
+
+library(qdapDictionaries)
+
+# For Translation 
+
+library(googleLanguageR)
+
+# Load authorization
+gl_auth("/Users/johnbrooks/Dropbox/Synced/Credentials/API/STAT 5702 - Text Translation-df0390ca10f9.json")
+
+# https://cran.r-project.org/web/packages/googleLanguageR/vignettes/setup.html
+
+# For Python
+library(reticulate)
+
+# use_python("/usr/local/bin/python3")
+# use_python may not be sufficient
+## For maximal override:
+## Sys.setenv(RETICULATE_PYTHON = "/usr/local/bin/python3")
+
+## To naturally adjust this:
+## go to terminal and explore in base directory 
+## ls -a
+
+## if .Renviron is defined then skip touching otherwise touch to create the file:
+## touch .Renviron
+
+## now edit the file:
+## nano .Renviron
+
+## now add the line:
+## RETICULATE_PYTHON="enter your desired path here"
+## e.g. RETICULATE_PYTHON="/usr/local/bin/python3"
+
+## now exit and save
+## command + X or ctrl + X 
+## press Y when prompted
+
+# Check success with
+## reticulate::py_discover_config()
+## reticulate::py_config()
+
+# Store path
+storePath = "/Users/johnbrooks/Dropbox/R_files/Users/johnbrooks/Dropbox/Synced/R/STAT 5702/Store/"
+```
+
+# Chapter 2: General Cleaning
+
+Prior to our analysis, characteristics of the data were reviewed in general to appreciate if language use within the surveys could complicate suvsequent analysis.
+
+## Section 2-1: Getting Survey Text
+
+First we took the raw file provided and separated out the text based answers to the survey.
+```{r initialCleaning, cache=TRUE}
+# Read in initial data
+rawData <- read.xlsx(paste0(storePath,"Redacted FAB_Project_raw_data_Clean EXCEL Dec.23.xlsx"),1)
+
+# Process columns
+columnNamesStore <- names(rawData)
+
+# Instantiate a data frame for cleaning
+cleanData <- rawData
+names(cleanData) <- paste("c",1:ncol(cleanData),sep="_")
+
+# If you want to see the data 
+# View(cleanData)
+
+# Bring out the non-caegorical columns (on manual read through)
+nonCatColumns <- c(14,
+                   22,
+                   30,
+                   40,
+                   41,
+                   43,
+                   45,
+                   46,
+                   48)
+
+# Scrape free text columns out of the original data with some identifiers
+procData <- cleanData[,c(1,2,nonCatColumns)]
+newNames <- names(procData)
+selectNames  <- newNames[c(3:length(newNames))]
+```
+
+## Section 2-2: Translating to English
+
+After obtaining the free text we then implemented a Google translation API to provide a rough translation of french responses that were later verified manually.
+```{r translationSection, cache=TRUE}
+# Prepare for Translation
+## Pivot the data to identify french text
+pivtData <- procData %>%
+  
+  ### Select only those columns with the ID and the phrases for further processing
+  select(c("c_1","c_2",selectNames)) %>%
+  
+  ### Pivot the data to be cataloged by ID and question index
+  pivot_longer(all_of(selectNames),names_to = "column",values_to = "response")
+
+# Pick out french responses
+forTranslation <- pivtData %>%
+  
+  # Take out french
+  filter(c_2 == "FR") 
+
+# Count Characters to estimate cost ... under the free limit, yay!
+counterChar <- 0
+for(currentStr in forTranslation$response) {
+  counterChar <- counterChar + str_length(currentStr)
+}
+
+# Translation functional block
+## Commented out as running it too many time could mean $$$
+## control + shift + C to activate / deactivate lines
+if(!file.exists(paste0(storePath,"frenchToEnglish.rds"))){
+  
+  # Prepare dense feed for translation
+  translationFeed <- forTranslation$response[!(forTranslation$response == "")]
+  
+  # Standardize frame for API input and translate the first response
+  translationFrame <- gl_translate(
+    t_string,
+    target = "en",
+    format = "text",
+    source = "fr",
+    model = "nmt"
+  )
+  
+  # Translate other responses
+  for (i in 2:length(translationFeed)){
+    
+    ## 8 was excluded because there was a copy/paste of a large text segment (i.e., repetition)
+    if(i!=8){
+      translationEnFr <- gl_translate(
+        translationFeed[i],
+        target = "en",
+        format = "text",
+        source = "fr",
+        model = "nmt"
+      )
+    }
+    translationFrame <- rbind(translationFrame, translationEnFr)
+  }
+  
+  # Save the feed 
+  saveRDS(translationFrame,
+          paste0(storePath,"frenchToEnglish.rds"))
+  write.xlsx(translationFrame, paste0(storePath,"frenchToEnglish.xlsx"))
+  
+} else {
+  
+  # Read the file if available
+  translationFrame <- readRDS(paste0(storePath,"frenchToEnglish.rds"))
+}
+
+# Read in improved matrix if it is available (i.e., the manually verified translation)
+if(file.exists(paste0(storePath,"frenchToEnglishM.xlsx"))){
+  translationFrame <- 
+    readxl::read_xlsx(paste0(storePath,"frenchToEnglishM.xlsx"),1)
+}
+
+# Create master translated tibble that merges french and english
+if(!file.exists(paste0(storePath,"masterResponse.xlsx"))){
+  
+  FrenchSegmentResponse = forTranslation %>%
+    filter(response != "") %>%
+    mutate(english = translationFrame$translatedText)
+  
+  FrenchSegmentNonResponse = forTranslation %>%
+    filter(response == "") %>% 
+    mutate(english = "")
+  
+  EnglishTibble = pivtData %>%
+    # Take out french
+    filter(c_2 == "EN") %>%
+    mutate(english = response)
+  
+  # Master Response
+  MasterResponse = rbind(
+    FrenchSegmentResponse,
+    FrenchSegmentNonResponse,
+    EnglishTibble
+  ) %>% 
+    arrange(c_1,c_2,column)
+  
+  write.xlsx(MasterResponse, paste0(storePath,"masterResponse.xlsx"))
+} else {
+  MasterResponse = readxl::read_xlsx(paste0(storePath,"masterResponse.xlsx"),1)
+}
+```
+
+## Section 2-3: Verifying English Responses
+
+In order to maximize the value of the data, spelling errors and non-standard language was analyzed. Note that how this data is used will be described in subsequent sections. All that is discussed here is how various facets of the answers to the CRA questions were elucidated.
+
+Three primary components to analysis of the language used in the responses were analyzed. First words found to not match a comprehensive database of English words were separated for review. Words with more than one capital letter were then separated for consideration. Finally, those words where there was no match to the available dictionary but had a valid meaning (e.g., winfast) or initials that were likely to convey a concept (i.e., initialisms / acronyms) were separated from true errors or emphasis words (e.g. the fish was TERRIBLE). Resultant frames / discoveries are displayed subsequently.
+```{r analyzeEnglishResponses, cache=TRUE}
+# Complete analysis versus load
+if(!file.exists(paste0(storePath,"initialsVerification.xlsx"))){
+  # Note that the French translation had significant work processed manually
+  # The following discussion is with regards to the as yet unprocessed English data
+  # Prepare data for assessment
+  forProcessEng <- pivtData %>%
+    
+    # Take out french
+    filter(c_2 == "EN") %>%
+    
+    # Get the responses into words
+    unnest_tokens(word, response) %>%
+    
+    # Select the words column
+    select(c("word")) %>%
+    
+    # Get the unique words
+    unique()
+  
+  # load the dictionary (one source / source of choice)
+  # wordVector <- qdapDictionaries::DICTIONARY$word
+  
+  # Comprehensive source of English words including slang and variants 
+  ## e.g., stopped is a variant of stop
+  ## https://github.com/dwyl/english-words
+  wordfile <- read.csv(paste0(storePath,"words.txt"),sep="\n")
+  wordsList <- tolower(wordfile$X2)
+  
+  # Detect if the isolate word appears in the English language resource that is loaded
+  lengthProc <- nrow(forProcessEng)
+  isWord <- rep(FALSE,lengthProc)
+  for(currentIndex in 1:nrow(forProcessEng)) {
+    isWord[currentIndex] <- as.character(forProcessEng[currentIndex,1]) %in%
+      wordsList
+  }
+  
+  # Create patterns to find initialisms (i.e., words that contain more than 1 capital letter)
+  initialismPattern <- c(
+    # Natural strings
+    "\\b\\w+[[:upper:]]\\w+[[:upper:]]\\w+\\b",
+    "\\b[[:upper:]]\\w+[[:upper:]]\\w+\\b",
+    "\\b\\w+[[:upper:]]\\w+[[:upper:]]\\b",
+    "\\b\\w+[[:upper:]][[:upper:]]\\w+\\b",
+    "\\b[[:upper:]][[:upper:]]\\w+\\b",
+    "\\b\\w+[[:upper:]][[:upper:]]\\b",
+    "\\b[[:upper:]]\\w+[[:upper:]]\\b",
+    "\\b[[:upper:]][[:upper:]]\\b",
+    
+    # Possessive strings
+    "\\b\\w+[[:upper:]]\\w+[[:upper:]]\\w+\'s\\b",
+    "\\b[[:upper:]]\\w+[[:upper:]]\\w+\'s\\b",
+    "\\b\\w+[[:upper:]]\\w+[[:upper:]]\'s\\b",
+    "\\b\\w+[[:upper:]][[:upper:]]\\w+\'s\\b",
+    "\\b[[:upper:]][[:upper:]]\\w+\'s\\b",
+    "\\b\\w+[[:upper:]][[:upper:]]\'s\\b",
+    "\\b[[:upper:]]\\w+[[:upper:]]\'s\\b",
+    "\\b[[:upper:]][[:upper:]]\'s\\b"
+  )
+  
+  # Collapse the responses into one searchable string
+  responsesTogether <- paste(pivtData$response, collapse = "\n")
+  
+  # Get the initialisms from this searchable string
+  listInitialisms <- unlist(str_extract_all(responsesTogether,initialismPattern)) %>%
+    unique() %>%
+    sort()
+  
+  # For each initialism find where it was discovered
+  indexHold <- c()
+  respondsHold <- c()
+  for(initialismIndex in 1:length(listInitialisms)){
+    currentResponses <- grep(listInitialisms[initialismIndex],pivtData$response)
+    respondsHold <- c(respondsHold, currentResponses)
+    indexHold <- c(indexHold, rep(initialismIndex,length(currentResponses)))
+  }
+  
+  # Decode verification frame for manual review
+  verificationFrame <- data.frame(listInitialisms[indexHold],
+                                  pivtData$response[respondsHold])
+  
+  # Write the verification from to an excel file for ease of viewing
+  write.xlsx(verificationFrame,paste0(storePath,"initialsVerification.xlsx"))
+  
+} else {
+  verificationFrame <- read.xlsx(paste0(storePath,"initialsVerification.xlsx"),1)
+}
+
+## Misspellings
+# Prepare to adjust names for misspelling data frame
+adjColNames <- function(dataFrameIn,newNamesIn) {
+  colnames(dataFrameIn) <- newNamesIn
+  return(dataFrameIn)
+}
+
+# Show misspelling findings
+misSpelled <- data.frame(rbind(
+  c("adminsitrave","administrative"),
+  c("assesment","assessment"),
+  c("back and forths","redundant communication"),
+  c("beuracracy","bureaucracy"),
+  c("carreer","career"),
+  c("clickets","clicks"),
+  c("Clients's","client's"),
+  c("Cluster's","clusters"),
+  c("collegues","colleagues"),
+  c("collugies","colleagues"),
+  c("communicatiuons","communications"),
+  c("consistetnly","consistently"),
+  c("constent","constant"),
+  c("containg","containing"),
+  c("coporate","corporate"),
+  c("costings","costing"),
+  c("curretn","current"),
+  c("desking","desk"),
+  c("eceptional","exceptional"),
+  c("effrective","effective"),
+  c("emapathy","empathy"),
+  c("emial","email"),
+  c("empath ","empathetic"),
+  c("enthusiactic","enthusiastic"),
+  c("excellente","excellent"),
+  c("explaination","explanation"),
+  c("finanace","finance"),
+  c("gliches","glitches"),
+  c("inforamtion","information"),
+  c("inperson","in person"),
+  c("interfereing","interfering"),
+  c("intrical","integral"),
+  c("leavning","leaving"),
+  c("managment","management"),
+  c("nintey percent","90percent"),
+  c("particualry","particularly"),
+  c("perfer","prefer"),
+  c("persay",""), #just eliminate / extraneous
+  c("pletntiful","plentiful"),
+  c("Plexi Glass","plexiglass"),
+  c("positve","positive"),
+  c("postions","positions"),
+  c("prompty","promptly"),
+  c("puticular","particular"),
+  c("questons","questions"),
+  c("refferences","references"),
+  c("ressource","resource"),
+  c("ressources","resources"),
+  c("serie","series"), #alert
+  c("sifficient","sufficient"),
+  c("strenghts","strengths"),
+  c("stylis","stylus"),
+  c("THe","The"),
+  c("timefram","time frame"),
+  c("timeframe","time frame"),
+  c("timeframes","time frames"),
+  c("timeline","time line"),
+  c("timelines","time lines"),
+  c("unintentially","unintentionally"),
+  c("unprecedent","unprecedented")
+)) %>%
+  adjColNames(.,c("error","corrected"))
+
+## Words flagged by analysis that added no meaning to the sentences upon reading
+wordsForElimination <- rbind(
+  c("\\bbuilding\'s\\b",""),
+  c("\\bhttps://",""),
+  c("\\b\\(IAR\\)\\b","")
+)
+
+## Words that may reasonably be subbed 
+subWords <- rbind(
+  c("actioned","addressed"),
+  c("admin ","assistant "),
+  c("admins","assistants"),
+  c("cell phone","phone"),
+  c("cell phones","phones"),
+  c("cellphone","phone"),
+  c("cellphones","phones"),
+  c("covid 19","covid"),
+  c("covid-19","covid"),
+  c("cross boarding","transferring"),
+  c("depts.","departments"),
+  c("doctor's","doctor"),
+  c("e.g","like"),
+  c("Floorplan","floor plan"),
+  c("googling","researching"),
+  c("how-to's","procedures"),
+  c("i.e.","like"),
+  c("i.e","like"),
+  c("I.T","information technology"),
+  c("IDEA","excel protocol"),
+  c("importants","important information"),
+  c("inbox","mailbox"),
+  c("iphone","phone"),
+  c("iphones","phones"),
+  c("IT ServiceDesk",""),
+  c("JIRA","application 1"),
+  c("Kahoot","application 3"),
+  c("Kantech","application 4"),
+  c("kinda","somewhat"),
+  c("KnowHow","application 5"),
+  c("leaving them hanging",""),
+  c("mailroom","mail room"),
+  c("mastercard","credit"),
+  c("Microsoft Office",""),
+  c("Microsoft Outlook",""),
+  c("microsoft team",""),
+  c("Microsoft Teams",""),
+  c("Microsoft teams",""),
+  c("Microsoft Vista",""),
+  c("MobiliKey",""),
+  c("MS","Microsoft"),
+  c("msteams",""),
+  c("na",""),
+  c("onboarding","initiating"),
+  c("OneNote",""),
+  c("PowerPivot",""),
+  c("powerpoint",""),
+  c("PowerPoint",""),
+  c("PowerQuery",""),
+  c("PPE","Personal Protective Equipment"),
+  c("Samsung smartphone","phone"), #usual reference is desire for iphone
+  c("Samsung","phone"),
+  c("smart phone","phone"),
+  c("smart phones","phones"),
+  c("smartphone","phone"),
+  c("smartphones","phones"),
+  c("SnagIT",""),
+  c("SnipIt",""),
+  c("staff's","subordinate's"),
+  c("telecom","telephone companies"),
+  c("telework","telecommuting"),
+  c("teleworking","telecommuting"),
+  c("thank you's","commendations"),
+  c("touchpoints","interactions"),
+  c("transferees within the organization","transferees"),
+  c("unknows","uncertainty"),
+  c("USERID","name"),
+  c("USERID's","names"),
+  c("videoconferencing","teleconferencing"),
+  c("webform","electronic form"),
+  c("webinars","internet seminars"),
+  c("What is the product number for XXX","What is the product number for this"),
+  c("widescreen","wider"),
+  c("WiFI","wireless internet access"),
+  c("WiFi","wireless internet access"),
+  c("wifi","wireless internet access"),
+  c("WIKI","application 2"),
+  c("Wiki","application 2"),
+  c("workplaces","work space")
+)
+
+# Store discoveries (i.e., these were the collective discoveries)
+## Initialisms found
+trueWords <- rbind(
+  c("ABSB",""),
+  c("ABSC",""),
+  c("ABW",""),
+  c("ACO",""),
+  c("AEP",""),
+  c("ALASD",""),
+  c("AMA",""), # mega alert
+  c("ATIPs",""), 
+  c("BECC",""), 
+  c("BGIS",""),
+  c("BI",""), # alert
+  c("BIQA",""),
+  c("BLO",""), # alert
+  c("BMC",""),
+  c("CAPS",""),
+  c("CAS",""),
+  c("CERB",""),
+  c("CESB",""),
+  c("client reorgs",""),
+  c("CNAS",""),
+  c("CO",""), # Alert - find with "CO,"
+  c("CoEs",""),
+  c("COMSEC",""),
+  c("CPB",""),
+  c("CPB\'s",""),
+  c("CPI",""),
+  c("CPIs",""),
+  c("CPSP",""),
+  c("CSMD",""),
+  c("CVB",""),
+  c("DG","Director General"),
+  c("DGFA",""), # French
+  c("DGO",""),
+  c("DGRH",""), # French
+  c("DGs","Directors General"),
+  c("DMC",""),
+  c("DoF","Department of Finance"), #department of finance
+  c("DSFA","Delegation of Spending and Financial Authority"),
+  c("DTA",""),
+  c("EA requests",""),
+  c("EAP",""), #Careful as  appears in many words
+  c("EBus",""),
+  c("ECOTSO",""),
+  c("EEs",""), #Careful as EEs 
+  c("EFM",""),
+  c("EFMS",""),
+  c("EPS project (Synergy replacement)",""),
+  c("EPS projects",""),
+  c("EUR",""),
+  c("F&A",""),
+  c("FAB\'s",""),
+  c("FAMF",""),
+  c("FAMF",""),
+  c("FandA",""),
+  c("FAQ","Frequently Asked Quesions"),
+  c("FIs",""), #alert
+  c("FM"),
+  c("FMA",""),
+  c("FMA\'s",""),
+  c("FMAs",""),
+  c("FMAS",""),
+  c("FMASD","Financial Management & Advisory Services Directorate"),
+  c("FMASD\'s","Financial Management & Advisory Services Directorate's"),
+  c("FMS","Financial Management System"),
+  c("FORD program","TBS program for the development of Financial Officers FIs"),
+  c("FORD","TBS program for the development of Financial Officers FIs"),
+  c("FRAD",""),
+  c("FRAD\'s",""),
+  c("FTEs",""),
+  c("GC Docs",""),
+  c("GCSurplus",""),
+  c("GCWCC",""),
+  c("GLs",""),
+  c("GoC","Government of Canada"),
+  c("GS",""),
+  c("GS\'s",""),
+  c("HQ","Headquarters"),
+  c("HR","Human Resources"),
+  c("HRB",""),
+  c("IAFCD",""),
+  c("IAFCD",""),
+  c("IAM","Identity and Access Management"),
+  c("IAR",""),
+  c("IBC",""),
+  c("IBC\'s",""),
+  c("ICD",""),
+  c("ID offices",""),
+  c("ID","identification"),
+  c("ID\'s",""), #alert
+  c("IO",""),
+  c("IPRT",""),
+  c("ISD",""), #alert
+  c("ISS",""), # Alert
+  c("ITB",""),
+  c("ITB",""),
+  c("ITSS",""),
+  c("ITSSP",""),
+  c("JV",""),
+  c("JVs",""),
+  c("KRP",""),
+  c("KRP\'s",""),
+  c("LR",""),
+  c("MERKS",""),
+  c("MG1",""),
+  c("MG1\'s",""),
+  c("MG2",""),
+  c("MG2\'s",""),
+  c("MG3",""),
+  c("MG4",""),
+  c("MIFI",""),
+  c("ML3",""),
+  c("MP",""),
+  c("MTS",""),
+  c("MyAccount",""),
+  c("NCR",""),
+  c("NFDC",""),
+  c("NPSW",""),
+  c("NPSW",""),
+  c("OAG",""),
+  c("OGD",""),
+  c("OGD\'s",""),
+  c("OGDs",""),
+  c("OHS",""),
+  c("OPIs",""),
+  c("P3",""),
+  c("P6",""),
+  c("P7",""),
+  c("PAB",""), #alert
+  c("PB",""),
+  c("PBF",""),
+  c("PCCE",""),
+  c("PMA",""),
+  c("PMBOK",""),
+  c("PMI",""),
+  c("PMP",""),
+  c("PO",""),
+  c("PO\'s",""),
+  c("PPSL",""),
+  c("PRINCE2",""),
+  c("PSP",""),
+  c("PSPC",""),
+  c("PSPC",""),
+  c("PSS",""),
+  c("PSSDSG",""),
+  c("RARAD",""),
+  c("RBA",""), #Alert
+  c("RC02",""),
+  c("RC02",""),
+  c("RFAS",""),
+  c("RH",""), #French
+  c("RI",""), #French
+  c("RL Security helpdesk",""),
+  c("RMC bootcamps",""),
+  c("RMC",""),
+  c("RMD","Resource Management Directorate"),
+  c("RP",""), 
+  c("RP1","Tenant Request for work"),
+  c("RPA",""), #Alert
+  c("RPRD",""),
+  c("RPRD\'s",""),
+  c("RPSA",""),
+  c("RPSID","Real Property & Service Integration Directorate"),
+  c("RR","respendable revenue"),
+  c("RR","RR section for FMASD-CVB"),
+  c("RSCAD",""),
+  c("RTA",""),
+  c("SACO",""),
+  c("SAE",""), # French
+  c("SD agents","Service Desk Agents"),
+  c("ServiceDesk","Service Desk"),
+  c("SIAD","Security and Internal Affairs Directorate"),
+  c("SIR\'s",""),
+  c("SLA",""),
+  c("SOP","Standard Operating Procedure"),
+  c("SOW",""),
+  c("SP 02",""),
+  c("SP",""),
+  c("SP02",""),
+  c("SP05",""),
+  c("SP07",""),
+  c("SP2",""),
+  c("SP3",""),
+  c("SP5",""),
+  c("SP5s",""),
+  c("SPC",""),
+  c("SPS+",""),
+  c("SRA",""),
+  c("SRC",""),
+  c("SSB",""),
+  c("SSC",""),
+  c("SW",""),
+  c("TB",""), #Like TB used to have
+  c("TBS",""),
+  c("TC",""),
+  c("TETSO",""),
+  c("TETSO",""), 
+  c("TI","Information Technology"), #French
+  c("TL",""),
+  c("TN-TSO","Toronto North TSO"),
+  c("TNTSO",""),
+  c("TOC","Transformation Oversight Committee"),
+  c("TSO",""),
+  c("TSO\'s",""),
+  c("TSOS",""),
+  c("TWTSO","west?"),
+  c("USF",""), #French
+  c("WFH",""),
+  c("ZDFA_RPT","")
+)
+
+## Words that were capitalized for emphasis
+emphasisWords <- rbind(
+  c("\\(TRUE\\)",""),
+  c("a BAD client service example",""),
+  c("AD HOC","not formally planned"), # in a french translation 
+  c("Admin staff have been present DAILY","consistently worked every day"),
+  c("Advise them to STOP IT",""),
+  c("ALL the slack","extreme amounts of slack"),
+  c("better service MY clients",""),
+  c("Doing the job correctly THE FIRST TIME",""),
+  c("Doing the job correctly THE FIRST TIME","providing quality work initially"),
+  c("if I sent a request to our admin to order that equipment that SHE WOULD",""),
+  c("Merci BEAUCOUP!","Thank you very much!"),
+  c("My team and I take client service VERY seriously",""),
+  c("THANK YOU",""),
+  c("THANKFUL",""),
+  c("The system is NOT being utilized in an efficient way",""),
+  c("visited EVERY site regularly","consistently visited sites"),
+  c("WE want to be the best place for a client","")
+)
+
+## Words that truly are english but were not detected as such
+otherWords <- rbind(
+  c("CFO's","Cheif Financial Officer's"),
+  c("checkin's",""),
+  c("commissionaires",""),
+  c("ebizz",""),
+  c("efax",""),
+  c("emails",""),
+  c("false",""),
+  c("group's",""),
+  c("infozone",""),
+  c("InfoZone",""),
+  c("LAN","local area network"),
+  c("lockdown",""),
+  c("lockdowns",""),
+  c("majorly",""),
+  c("MSteam",""),
+  c("MSTeams",""),
+  c("NA",""),
+  c("NOTE","note"),
+  c("OK","okay"),
+  c("ON","Ontario"),
+  c("onsite","on-site"),
+  c("PC","personal computer"),
+  c("PC's","personal computers"),
+  c("PDF",""),
+  c("PEI","Prince Edward Island"),
+  c("proactively",""),
+  c("proactiveness","proactive"),
+  c("PTSD","Post Traumatic Stress Disorder"),
+  c("pushback","objections"),
+  c("RAM","Random Access Memory"),
+  c("RCMP","Royal Canadian Mounted Police"),
+  c("resourced","supplied"),
+  c("respendable",""),
+  c("Screensharing",""),
+  c("St Catharines",""),
+  c("stakeholders",""),
+  c("TEAM","Microsoft Teams"),
+  c("team's",""),
+  c("TEAMS","Microsoft Teams"),
+  c("teleconferencing",""),
+  c("voicemail",""),
+  c("voip",""),
+  c("VPN","Virtual Protective Network"),
+  c("webcam",""),
+  c("webex",""),
+  c("website",""),
+  c("wiki",""),
+  c("WIKI",""),
+  c("Winfast",""),
+  c("WinFAST",""),
+  c("WINFAST",""),
+  c("workaround",""),
+  c("workflow",""),
+  c("workflows",""),
+  c("worksite","on-site"),
+  c("www.deepl.com","")
+)
+
+## Words that are english but are being used in a different way in the text
+dualWords <- rbind(
+  c("AC",""),
+  c("AD","Assistant Director"),
+  c("AD's","Assistant Directors"),
+  c("ADs",""),
+  c("CRA","Canada Revenue Agency"),
+  c("CRA\'s","Canada Revenue Agency's"),
+  c("FAB",""),
+  c("FAD",""),
+  c("FAM",""),
+  c("FI",""),
+  c("IT","Information Techology"),
+  c("ITS",""),
+  c("OR","Operating Revenue"),
+  c("SAP",""),
+  c("SIP","")
+)
+```
